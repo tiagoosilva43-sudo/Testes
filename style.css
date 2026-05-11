@@ -1321,6 +1321,10 @@ body.dark .pagina-a4 .expoente-repeticao {
     padding: 0 !important;
 }
 
+/* Texto do botão de impressão: desktop mostra "Imprimir PDF", mobile mostra "Salvar PDF" */
+.texto-imprimir-mobile { display: none; }
+.texto-imprimir-desktop { display: inline; }
+
 /* ================= NOTIFICAÇÕES TOAST (FIM DOS ALERTAS) ================= */
 .toast-notificacao {
     position: fixed;
@@ -1721,4 +1725,8 @@ body.dark .pagina-a4 .expoente-repeticao {
         left: 12px;
         text-align: center;
     }
+
+    /* Botão de impressão vira "Salvar PDF" no mobile */
+    .texto-imprimir-desktop { display: none; }
+    .texto-imprimir-mobile { display: inline; }
 }

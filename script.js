@@ -770,6 +770,10 @@ function escalarPaginasA4() {
     });
 }
 
+function esMobile() {
+    return window.innerWidth <= 768;
+}
+
 function gerarCssImpressao() {
     return `
         @page { size: A4 portrait; margin: 0; }
@@ -824,8 +828,58 @@ function gerarCssImpressao() {
     `;
 }
 
+async function salvarPdfMobile() {
+    const { jsPDF } = window.jspdf;
+    const paginas = dom.docContainer.querySelectorAll('.pagina-a4');
+    if (!paginas.length) { mostrarToast('Nenhum documento gerado.'); return; }
+
+    mostrarToast('Gerando PDF...');
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const larguraMM = 210;
+    const alturaMM = 297;
+
+    for (let i = 0; i < paginas.length; i++) {
+        const pagina = paginas[i];
+
+        // Remove escala temporariamente para capturar em tamanho real
+        const transformOriginal = pagina.style.transform;
+        const marginOriginal = pagina.style.marginBottom;
+        pagina.style.transform = 'none';
+        pagina.style.marginBottom = '0';
+
+        const canvas = await html2canvas(pagina, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            width: pagina.offsetWidth,
+            height: pagina.offsetHeight,
+            windowWidth: pagina.offsetWidth,
+            windowHeight: pagina.offsetHeight
+        });
+
+        // Restaura escala
+        pagina.style.transform = transformOriginal;
+        pagina.style.marginBottom = marginOriginal;
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, 0, larguraMM, alturaMM);
+    }
+
+    const nomeArquivo = (dom.inputTitulo.value || 'cifra') + '.pdf';
+    pdf.save(nomeArquivo);
+}
+
 function imprimirA4() {
-    // Clona o container e remove qualquer transform de escala mobile antes de imprimir
+    // Mobile: salva como PDF via jsPDF + html2canvas
+    if (esMobile()) {
+        salvarPdfMobile();
+        return;
+    }
+
+    // Desktop: impressão via iframe
     const clone = dom.docContainer.cloneNode(true);
     clone.querySelectorAll('.pagina-a4').forEach(p => {
         p.style.transform = '';
@@ -838,36 +892,11 @@ function imprimirA4() {
 <html>
 <head>
     <title>Cifra A4</title>
-    <meta name="viewport" content="width=210mm">
     <style>${gerarCssImpressao()}</style>
 </head>
 <body>${conteudoFormatado}</body>
 </html>`;
 
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-    if (isIOS) {
-        // iOS (Safari e Chrome): iframe.print() não funciona — abre nova aba e imprime dela
-        const blob = new Blob([htmlCompleto], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const janela = window.open(url, '_blank');
-        if (janela) {
-            janela.onload = function() {
-                setTimeout(() => {
-                    janela.focus();
-                    janela.print();
-                    URL.revokeObjectURL(url);
-                }, 400);
-            };
-        } else {
-            // Popup bloqueado — fallback: abre a URL diretamente
-            window.location.href = url;
-        }
-        return;
-    }
-
-    // Desktop e Android: usa iframe oculto
     let iframe = document.getElementById('iframe-impressao');
     if (!iframe) {
         iframe = document.createElement('iframe');
