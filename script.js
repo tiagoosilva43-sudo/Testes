@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", function() {
         filter: '.nao-arrastavel, .btn-excluir-preview',
         animation: 200,
         ghostClass: 'sortable-ghost',
-        delay: 150,             
+        delay: 600,             
         delayOnTouchOnly: true, 
         onEnd: function (evt) {
             const nodes = Array.from(dom.previewMapa.children);
