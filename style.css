@@ -1450,69 +1450,95 @@ body {
     display: none !important;
 }
 
-.painel-grid {
+#passo2.ativo {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+#passo2 .header-secao,
+#passo2 .navegacao-passos {
+    flex-shrink: 0 !important;
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+}
+
+#passo2 .painel-grid {
     display: flex !important;
     flex-direction: column-reverse !important;
-    gap: 10px !important;
-    padding: 12px !important; /* Ganha área útil na tela */
+    flex: 1 !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
 }
 
-.lista-partes {
-    max-height: 110px !important; /* Fica mais curto para priorizar o formulário */
+#passo2 .lista-partes {
+    flex: 1 !important; /* Proporção de 1 parte de espaço */
+    max-height: none !important;
+    min-height: 45px !important;
     overflow-y: auto !important;
     padding: 6px !important;
+    margin: 0 !important;
 }
 
-.formulario-card .linha-inputs {
+#passo2 .formulario-card {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 2.5 !important; /* Proporção de 2.5 partes de espaço */
+    padding: 10px !important;
+    gap: 8px !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+}
+
+#passo2 .formulario-card .linha-inputs {
     display: flex !important;
     flex-direction: row !important;
-    align-items: center !important; /* Força o alinhamento no centro vertical */
+    align-items: center !important;
     justify-content: space-between !important;
     gap: 6px !important;
-    margin-bottom: 8px !important;
+    margin: 0 !important;
+    flex-shrink: 0 !important;
 }
 
-.formulario-card .linha-inputs #idParte {
+#passo2 .formulario-card .linha-inputs #idParte {
     width: 60px !important;
     padding: 6px 4px !important;
     text-align: center;
     margin: 0 !important;
 }
-
-.formulario-card .linha-inputs #tituloParte {
+	
+#passo2 .formulario-card .linha-inputs #tituloParte {
     flex: 1 !important;
     padding: 6px 8px !important;
     margin: 0 !important;
 }
 
-.formulario-card .color-picker-container {
+#passo2 .formulario-card .color-picker-container,
+#passo2 .formulario-card .color-picker-trigger {
     width: 32px !important;
     height: 32px !important;
     flex-shrink: 0 !important;
     margin: 0 !important;
     display: flex !important;
     align-items: center !important;
+    justify-content: center !important;
 }
 
-.color-picker-trigger {
-    width: 32px !important;
-    height: 32px !important;
-    margin: 0 !important;
-}
-
-textarea.cifra-input {
-    height: 115px !important; /* Tamanho reduzido para não gerar barra de rolagem no celular */
-    min-height: 115px !important;
+#passo2 textarea.cifra-input {
+    flex: 1 !important; /* Preenche o vazio do formulário */
+    height: auto !important;
+    min-height: 60px !important;
     padding: 8px !important;
     font-size: 13px !important;
+    margin: 0 !important;
+    resize: none !important; /* Impede redimensionamento manual que quebra o layout */
 }
 
-.formulario-card {
-    padding: 10px !important;
-    gap: 8px !important;
-}
-
-.formulario-card .btn-acao {
+#passo2 .formulario-card .btn-acao {
+    flex-shrink: 0 !important;
     padding: 8px !important;
-    margin-top: 2px !important;
+    margin: 0 !important;
 }
