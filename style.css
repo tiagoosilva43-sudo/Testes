@@ -1641,6 +1641,8 @@ body.dark .pagina-a4 .expoente-repeticao {
         padding: 12px;
         flex-shrink: 0;
         margin-bottom: 10px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .transpositor-container {
@@ -1648,15 +1650,22 @@ body.dark .pagina-a4 .expoente-repeticao {
     }
 
     .acoes-finais {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        flex-wrap: wrap;
         gap: 8px;
+        justify-content: stretch;
     }
 
     .acoes-finais .btn-nav {
-        padding: 10px 8px;
-        font-size: 13px;
+        flex: 1 1 calc(50% - 4px);
+        min-width: 0;
+        padding: 10px 6px;
+        font-size: 12px;
         justify-content: center;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* Área de preview: scroll vertical, sem cortar a página escalada */
