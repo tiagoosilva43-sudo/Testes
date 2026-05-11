@@ -1450,142 +1450,55 @@ body {
     display: none !important;
 }
 
-#passo2.ativo {
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 !important;
-    height: 100% !important;
-    overflow: hidden !important;
-}
-
-#passo2 .header-secao,
-#passo2 .navegacao-passos {
-    flex-shrink: 0 !important;
-    margin-top: 4px !important;
-    margin-bottom: 4px !important;
-}
-
-#passo2 .painel-grid {
+.painel-grid {
     display: flex !important;
     flex-direction: column-reverse !important;
-    flex: 1 !important;
-    gap: 8px !important;
-    padding: 0 !important;
-    overflow: hidden !important;
+    gap: 16px !important;
 }
 
-#passo2 .lista-partes {
-    flex: 1 !important; /* Proporção de 1 parte de espaço */
-    max-height: none !important;
-    min-height: 45px !important;
+.lista-partes {
+    max-height: 140px !important; /* Mostra ~3 itens por vez */
     overflow-y: auto !important;
-    padding: 6px !important;
-    margin: 0 !important;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px !important;
+    background-color: var(--bg-card);
 }
 
-#passo2 .formulario-card {
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 2.5 !important; /* Proporção de 2.5 partes de espaço */
-    padding: 10px !important;
-    gap: 8px !important;
-    overflow: hidden !important;
-    margin: 0 !important;
-}
-
-#passo2 .formulario-card .linha-inputs {
+.formulario-card .linha-inputs {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: space-between !important;
-    gap: 6px !important;
-    margin: 0 !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+}
+
+.formulario-card .linha-inputs #idParte {
+        width: 65px !important; /* Espaço exato para "V1", "C1" */
+        padding: 8px 6px !important;
+        text-align: center;
+}
+
+.formulario-card .linha-inputs #tituloParte {
+    flex: 1 !important; /* Ocupa todo o espaço restante no meio */
+    padding: 8px 10px !important;
+}
+
+.formulario-card .color-picker-container {
     flex-shrink: 0 !important;
 }
 
-#passo2 .formulario-card .linha-inputs #idParte {
-    width: 60px !important;
-    padding: 6px 4px !important;
-    text-align: center;
-    margin: 0 !important;
-}
-	
-#passo2 .formulario-card .linha-inputs #tituloParte {
-    flex: 1 !important;
-    padding: 6px 8px !important;
-    margin: 0 !important;
+.color-picker-trigger {
+    width: 34px !important;
+    height: 34px !important;
 }
 
-#passo2 .formulario-card .color-picker-container,
-#passo2 .formulario-card .color-picker-trigger {
-    width: 32px !important;
-    height: 32px !important;
-    flex-shrink: 0 !important;
-    margin: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-#passo2 textarea.cifra-input {
-    flex: 1 !important; /* Preenche o vazio do formulário */
-    height: auto !important;
-    min-height: 60px !important;
-    padding: 8px !important;
+textarea.cifra-input {
+    height: 160px !important;
+    padding: 10px !important;
     font-size: 13px !important;
-    margin: 0 !important;
-    resize: none !important; /* Impede redimensionamento manual que quebra o layout */
 }
 
-#passo2 .formulario-card .btn-acao {
-    flex-shrink: 0 !important;
-    padding: 8px !important;
-    margin: 0 !important;
-}
-
-.paleta-botoes { 
-    display: flex; 
-    gap: 10px; 
-    flex-wrap: nowrap; /* Força todas as bolinhas a ficarem em uma única linha */
-    overflow-x: auto;  /* Cria a barra de rolagem horizontal */
-    padding: 10px 15px; 
-    background: #f8fafc; 
-    border: 1px solid var(--border-clara); 
-    border-radius: 10px; 
-    flex-shrink: 0;
-    flex: 1;
-    max-width: 100%;
-}
-
-.paleta-botoes > * {
-    flex-shrink: 0;
-}
-
-.caixa-preview-mapa { 
-    background: #ffffff; 
-    border: 1px solid var(--border-color); 
-    border-radius: 10px; 
-    padding: 10px 15px; 
-    margin-bottom: 0; 
-    display: flex; 
-    align-items: center; 
-    min-height: 54px; 
-    flex-shrink: 0; 
-    overflow-x: auto; /* Habilita a rolagem horizontal do mapa final */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
-    flex: 1; 
-    width: 100%; 
-    max-width: 100%;
-}
-
-.preview-sortable { 
-    display: flex; 
-    gap: 10px; 
-    flex-wrap: nowrap; /* Força a sequência do PDF a ficar em uma única linha */
-    align-items: center;
-    flex: 1; 
-}
-
-.preview-sortable > * {
-    flex-shrink: 0;
+.formulario-card {
+    padding: 12px !important;
 }
