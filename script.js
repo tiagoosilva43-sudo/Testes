@@ -306,7 +306,9 @@ async function salvarProjeto() {
             const writable = await handleArquivoAtual.createWritable();
             await writable.write(jsonString);
             await writable.close();
-            mostrarToast("Projeto salvo com sucesso!");
+            mostrarToast("Projeto salvo com sucesso!", "sucesso");
+            // Limpa o draft do localStorage após salvar
+            localStorage.removeItem('cifras-studio-draft');
             return;
         } catch (err) { 
             console.error("Falha ao sobrescrever, abrindo salvar como nativo...", err); 
@@ -329,9 +331,15 @@ async function salvarProjeto() {
             await writable.close();
             
             handleArquivoAtual = handle; 
-            mostrarToast("Projeto salvo com sucesso!");
+            mostrarToast("Projeto salvo com sucesso!", "sucesso");
+            localStorage.removeItem('cifras-studio-draft');
             return;
-        } catch (err) { return; }
+        } catch (err) { 
+            if (err.name !== 'AbortError') {
+                mostrarToast("Erro ao salvar projeto", "erro");
+            }
+            return; 
+        }
     }
 
     // 3. Fallback de download via Blob para navegadores sem suporte
@@ -342,6 +350,8 @@ async function salvarProjeto() {
     a.download = (projeto.titulo || "cifras") + ".json";
     a.click();
     URL.revokeObjectURL(url);
+    mostrarToast("Projeto baixado com sucesso!", "sucesso");
+    localStorage.removeItem('cifras-studio-draft');
 }
 
 // ================= LÓGICA DE TRANSPOSIÇÃO DE TOM =================
@@ -417,12 +427,23 @@ function transporMusica(semitons) {
 
 // ================= CONVERSOR DE CIFRAS E GESTÃO DE PARTES =================
 function abrirConversor() { 
-    if (dom.modal) dom.modal.style.display = 'flex'; 
+    if (dom.modal) {
+        dom.modal.style.display = 'flex';
+        // Adiciona animação de entrada
+        setTimeout(() => dom.modal.classList.add('modal-aberto'), 10);
+        // Foca no textarea
+        setTimeout(() => dom.textoConversor?.focus(), 100);
+    }
 }
 
 function fecharConversor() { 
-    if (dom.modal) dom.modal.style.display = 'none'; 
-    if (dom.textoConversor) dom.textoConversor.value = ""; 
+    if (dom.modal) {
+        dom.modal.classList.remove('modal-aberto');
+        setTimeout(() => {
+            dom.modal.style.display = 'none';
+            if (dom.textoConversor) dom.textoConversor.value = "";
+        }, 300);
+    }
 }
 
 function processarConversao() {
@@ -466,10 +487,19 @@ function adicionarNovaParte() {
     const cor = dom.corParte.value;
     const index = parseInt(dom.editIndex.value, 10);
     
-    if (!id || !t || !c) return mostrarToast("Preencha todos os campos da seção!");
+    if (!id || !t || !c) {
+        mostrarToast("Preencha todos os campos da seção!", "aviso");
+        // Anima o campo vazio
+        const campoVazio = !id ? dom.idParte : !t ? dom.tituloParte : dom.conteudoParte;
+        campoVazio.style.animation = 'shake 0.5s';
+        setTimeout(() => { campoVazio.style.animation = ''; }, 500);
+        campoVazio.focus();
+        return;
+    }
     
     if(index === -1) {
         bancoDePartes.push({ id, t, c, cor });
+        mostrarToast(`Seção "${t}" adicionada!`, "sucesso");
     } else {
         const oldId = bancoDePartes[index].id;
         bancoDePartes[index] = { id, t, c, cor };
@@ -479,10 +509,15 @@ function adicionarNovaParte() {
         dom.editIndex.value = "-1";
         dom.btnSalvar.innerText = "+ Salvar Seção";
         dom.btnSalvar.style.background = "var(--cor-sucesso)";
+        mostrarToast(`Seção "${t}" atualizada!`, "sucesso");
     }
     
     dom.idParte.value = ''; dom.tituloParte.value = ''; dom.conteudoParte.value = '';
     atualizarUI();
+    
+    // Anima o botão de salvar
+    dom.btnSalvar.style.animation = 'pulse 0.5s';
+    setTimeout(() => { dom.btnSalvar.style.animation = ''; }, 500);
 }
 
 function editarParte(index) {
@@ -493,15 +528,21 @@ function editarParte(index) {
     dom.corParte.value = p.cor;
     dom.editIndex.value = index;
     dom.btnSalvar.innerText = "Atualizar Seção";
-    dom.btnSalvar.style.background = "var(--cor-alerta)"; 
+    dom.btnSalvar.style.background = "var(--cor-alerta)";
+    
+    // Scroll suave até o formulário
+    dom.idParte.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => dom.idParte.focus(), 300);
 }
 
 function excluirParte(index) {
-    if(confirm("Excluir seção? Isso removerá a parte da estrutura da música também.")) {
+    const parte = bancoDePartes[index];
+    if(confirm(`Excluir seção "${parte.t}"? Isso removerá a parte da estrutura da música também.`)) {
         const idRemovido = bancoDePartes[index].id;
         bancoDePartes.splice(index, 1);
         mapaAtual = mapaAtual.filter(inst => inst.id !== idRemovido);
         atualizarUI();
+        mostrarToast(`Seção "${parte.t}" excluída`, "info");
     }
 }
 
@@ -541,15 +582,32 @@ function adicionarAoMapa(indexBanco) {
     mapaAtual.push({ ...parte, com: '', mesclar: false, ocultar: false });
     renderizarTimeline();
     
+    // Feedback visual
+    mostrarToast(`"${parte.t}" adicionada ao mapa`, "sucesso");
+    
     const caixaTimeline = document.querySelector('.caixa-timeline');
     if (caixaTimeline) {
-        setTimeout(() => { caixaTimeline.scrollTop = caixaTimeline.scrollHeight; }, 50);
+        setTimeout(() => { 
+            caixaTimeline.scrollTop = caixaTimeline.scrollHeight;
+            // Destaca o item adicionado
+            const items = caixaTimeline.querySelectorAll('.item-linha-tempo');
+            const ultimoItem = items[items.length - 1];
+            if (ultimoItem) {
+                ultimoItem.style.animation = 'pulse 0.5s';
+                setTimeout(() => { ultimoItem.style.animation = ''; }, 500);
+            }
+        }, 50);
     }
 }
 
 window.excluirGrupoDoMapa = function(startIdx, count) {
+    const removidos = mapaAtual.slice(startIdx, startIdx + count);
+    const nomeSecao = removidos[0]?.t || 'Seção';
+    
     mapaAtual.splice(startIdx, count);
     renderizarTimeline();
+    
+    mostrarToast(`"${nomeSecao}" removida do mapa`, "info");
 };
 
 function renderizarTimeline() {
@@ -985,3 +1043,350 @@ function toggleDarkMode() {
         swipeAtivo = false;
     }, { passive: true });
 })();
+
+// ================= MELHORIAS DE INTERATIVIDADE E UX =================
+
+// 1. Fechar modal ao clicar fora ou pressionar ESC
+document.addEventListener('DOMContentLoaded', function() {
+    // Fechar modal ao clicar no overlay
+    if (dom.modal) {
+        dom.modal.addEventListener('click', function(e) {
+            if (e.target === dom.modal) {
+                fecharConversor();
+            }
+        });
+    }
+
+    // Fechar modal com tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            if (dom.modal && dom.modal.style.display === 'flex') {
+                fecharConversor();
+            }
+            // Fechar paleta de cores se estiver aberta
+            const painelCores = document.getElementById('painelCores');
+            if (painelCores && painelCores.classList.contains('aberto')) {
+                fecharPainelCores();
+            }
+        }
+    });
+
+    // Atalhos de teclado
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + S para salvar projeto
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            salvarProjeto();
+        }
+        
+        // Ctrl/Cmd + O para abrir projeto
+        if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+            e.preventDefault();
+            carregarProjeto();
+        }
+
+        // Ctrl/Cmd + P para imprimir (apenas no passo 4)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+            const passo4 = document.getElementById('passo4');
+            if (passo4 && passo4.classList.contains('ativo')) {
+                e.preventDefault();
+                imprimirA4();
+            }
+        }
+    });
+
+    // Auto-save draft a cada 30 segundos
+    setInterval(function() {
+        const temDados = dom.inputTitulo.value || dom.inputAutor.value || 
+                        dom.inputTom.value || bancoDePartes.length > 0;
+        
+        if (temDados) {
+            const draft = {
+                titulo: dom.inputTitulo.value,
+                autor: dom.inputAutor.value,
+                tom: dom.inputTom.value,
+                bpm: dom.inputBpm.value,
+                compasso: dom.inputCompasso.value,
+                bancoDePartes: bancoDePartes,
+                mapaAtual: mapaAtual,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('cifras-studio-draft', JSON.stringify(draft));
+        }
+    }, 30000);
+
+    // Recuperar draft ao carregar
+    const draft = localStorage.getItem('cifras-studio-draft');
+    if (draft) {
+        try {
+            const dados = JSON.parse(draft);
+            const timestamp = new Date(dados.timestamp);
+            const agora = new Date();
+            const diferencaHoras = (agora - timestamp) / (1000 * 60 * 60);
+            
+            // Se o draft tem menos de 24 horas, perguntar se quer recuperar
+            if (diferencaHoras < 24 && dados.titulo) {
+                setTimeout(() => {
+                    if (confirm(`Encontramos um rascunho salvo de "${dados.titulo}". Deseja recuperá-lo?`)) {
+                        dom.inputTitulo.value = dados.titulo || "";
+                        dom.inputAutor.value = dados.autor || "";
+                        dom.inputTom.value = dados.tom || "";
+                        dom.inputBpm.value = dados.bpm || "";
+                        dom.inputCompasso.value = dados.compasso || "";
+                        bancoDePartes = dados.bancoDePartes || [];
+                        mapaAtual = dados.mapaAtual || [];
+                        atualizarUI();
+                        renderizarTimeline();
+                        mostrarToast('Rascunho recuperado com sucesso!');
+                    } else {
+                        localStorage.removeItem('cifras-studio-draft');
+                    }
+                }, 1000);
+            }
+        } catch (e) {
+            console.error('Erro ao recuperar draft:', e);
+        }
+    }
+
+    // Confirmação antes de sair com dados não salvos
+    window.addEventListener('beforeunload', function(e) {
+        const temDados = dom.inputTitulo.value || dom.inputAutor.value || 
+                        dom.inputTom.value || bancoDePartes.length > 0;
+        
+        if (temDados) {
+            e.preventDefault();
+            e.returnValue = 'Você tem alterações não salvas. Deseja realmente sair?';
+            return e.returnValue;
+        }
+    });
+
+    // Smooth scroll para elementos scrolláveis
+    const scrollElements = document.querySelectorAll('.caixa-timeline, .lista-partes, .folha-preview-area');
+    scrollElements.forEach(el => {
+        el.style.scrollBehavior = 'smooth';
+    });
+
+    // Feedback visual ao adicionar seção
+    const btnSalvarOriginal = dom.btnSalvar.onclick;
+    dom.btnSalvar.onclick = function() {
+        btnSalvarOriginal?.call(this);
+        // Animação de sucesso
+        const btn = this;
+        btn.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            btn.style.transform = '';
+        }, 150);
+    };
+
+    // Adicionar indicador de loading ao gerar PDF
+    const btnImprimirOriginal = window.imprimirA4;
+    window.imprimirA4 = function() {
+        const btn = document.querySelector('.btn-imprimir');
+        if (btn) {
+            const textoOriginal = btn.innerHTML;
+            btn.innerHTML = esMobile() ? 
+                '<span>⏳ Gerando PDF...</span>' : 
+                '<span>⏳ Preparando impressão...</span>';
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            
+            setTimeout(() => {
+                btnImprimirOriginal();
+                setTimeout(() => {
+                    btn.innerHTML = textoOriginal;
+                    btn.disabled = false;
+                    btn.style.opacity = '';
+                }, 1000);
+            }, 100);
+        } else {
+            btnImprimirOriginal();
+        }
+    };
+
+    // Adicionar tooltips nos botões principais
+    adicionarTooltips();
+
+    // Animação de entrada suave nos passos
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'class') {
+                const target = mutation.target;
+                if (target.classList.contains('ativo') && target.classList.contains('passo')) {
+                    target.style.animation = 'none';
+                    setTimeout(() => {
+                        target.style.animation = '';
+                    }, 10);
+                }
+            }
+        });
+    });
+
+    document.querySelectorAll('.passo').forEach(passo => {
+        observer.observe(passo, { attributes: true });
+    });
+});
+
+// Função para adicionar tooltips
+function adicionarTooltips() {
+    const tooltips = {
+        '.btn-menu-flutuante': 'Abrir menu (ou arraste da borda esquerda)',
+        '.btn-fechar-menu:last-child': 'Fechar menu',
+        '.btn-secundario': 'Abrir conversor de cifras',
+        '.color-picker-trigger': 'Escolher cor da seção',
+        '.drag-handle': 'Arraste para reordenar',
+        '.drag-handle-banco': 'Arraste para reordenar seções',
+        '.btn-edit': 'Editar seção',
+        '.btn-del': 'Excluir seção',
+        '.btn-excluir-preview': 'Remover do mapa',
+        '.bolinha': 'Clique para adicionar ao mapa',
+        '.transpositor-container .btn-mini:first-child': 'Diminuir meio tom',
+        '.transpositor-container .btn-mini:last-child': 'Aumentar meio tom'
+    };
+
+    Object.entries(tooltips).forEach(([selector, texto]) => {
+        document.querySelectorAll(selector).forEach(el => {
+            if (!el.hasAttribute('title')) {
+                el.setAttribute('title', texto);
+            }
+        });
+    });
+}
+
+// Melhorar feedback visual ao arrastar
+document.addEventListener('DOMContentLoaded', function() {
+    // Adicionar classe ao iniciar drag
+    document.addEventListener('dragstart', function(e) {
+        if (e.target.classList.contains('bolinha') || 
+            e.target.classList.contains('bolinha-preview') ||
+            e.target.closest('.item-linha-tempo') ||
+            e.target.closest('.item-parte')) {
+            e.target.style.opacity = '0.5';
+        }
+    });
+
+    // Remover classe ao terminar drag
+    document.addEventListener('dragend', function(e) {
+        e.target.style.opacity = '';
+    });
+
+    // Feedback visual ao passar mouse sobre áreas dropáveis
+    const dropZones = document.querySelectorAll('.preview-sortable, .linha-tempo, .lista-partes');
+    dropZones.forEach(zone => {
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.background = 'rgba(102, 126, 234, 0.05)';
+        });
+
+        zone.addEventListener('dragleave', function() {
+            this.style.background = '';
+        });
+
+        zone.addEventListener('drop', function() {
+            this.style.background = '';
+        });
+    });
+});
+
+// Função melhorada para mostrar toast com ícones
+const toastOriginal = window.mostrarToast;
+window.mostrarToast = function(mensagem, tipo = 'info') {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    
+    const icones = {
+        'sucesso': '✓',
+        'erro': '✕',
+        'aviso': '⚠',
+        'info': 'ℹ'
+    };
+    
+    const icone = icones[tipo] || icones['info'];
+    toast.innerHTML = `<span style="margin-right: 8px;">${icone}</span>${mensagem}`;
+    toast.classList.add('mostrar');
+    
+    setTimeout(() => {
+        toast.classList.remove('mostrar');
+    }, 3000);
+};
+
+// Adicionar animação de "pulse" ao salvar
+function animarSalvamento(elemento) {
+    if (!elemento) return;
+    elemento.style.animation = 'pulse 0.5s ease';
+    setTimeout(() => {
+        elemento.style.animation = '';
+    }, 500);
+}
+
+// Adicionar feedback ao clicar nas bolinhas
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('bolinha')) {
+        e.target.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            e.target.style.transform = '';
+        }, 150);
+    }
+});
+
+// Prevenir zoom duplo-toque no iOS
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function(e) {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+    }
+    lastTouchEnd = now;
+}, { passive: false });
+
+// ================= MOSTRAR/ESCONDER BOTÃO DE MENU COM MOUSE =================
+(function() {
+    const btnMenu = document.querySelector('.btn-menu-flutuante');
+    if (!btnMenu) return;
+
+    const ZONA_ATIVACAO = 100; // pixels da borda esquerda que ativam o botão
+    let timeoutEsconder = null;
+
+    document.addEventListener('mousemove', function(e) {
+        const mouseX = e.clientX;
+        const sidebar = document.getElementById('sidebar');
+        const sidebarFechado = sidebar && sidebar.classList.contains('fechado');
+
+        // Só mostra o botão se a sidebar estiver fechada e o mouse estiver perto da borda esquerda
+        if (sidebarFechado && mouseX <= ZONA_ATIVACAO) {
+            btnMenu.classList.add('visivel');
+            
+            // Cancela o timeout de esconder se existir
+            if (timeoutEsconder) {
+                clearTimeout(timeoutEsconder);
+                timeoutEsconder = null;
+            }
+        } else if (mouseX > ZONA_ATIVACAO) {
+            // Esconde o botão com um pequeno delay para evitar flickering
+            if (timeoutEsconder) clearTimeout(timeoutEsconder);
+            timeoutEsconder = setTimeout(() => {
+                btnMenu.classList.remove('visivel');
+            }, 300);
+        }
+    });
+
+    // Garante que o botão apareça quando o mouse está sobre ele
+    btnMenu.addEventListener('mouseenter', function() {
+        if (timeoutEsconder) {
+            clearTimeout(timeoutEsconder);
+            timeoutEsconder = null;
+        }
+        btnMenu.classList.add('visivel');
+    });
+
+    // Esconde o botão quando o mouse sai dele (se não estiver na zona de ativação)
+    btnMenu.addEventListener('mouseleave', function(e) {
+        const mouseX = e.clientX;
+        if (mouseX > ZONA_ATIVACAO) {
+            if (timeoutEsconder) clearTimeout(timeoutEsconder);
+            timeoutEsconder = setTimeout(() => {
+                btnMenu.classList.remove('visivel');
+            }, 300);
+        }
+    });
+})();
+
