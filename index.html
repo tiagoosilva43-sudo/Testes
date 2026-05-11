@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cifras Pro - Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <nav id="sidebar" class="sidebar fechado no-print">
+<div class="sidebar-header">
+            <h3>Cifras Studio</h3>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn-fechar-menu" onclick="toggleDarkMode()" title="Alternar Tema">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+                <button class="btn-fechar-menu" onclick="toggleMenu()" title="Recolher menu">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="sidebar-links">
+            <button onclick="mudarPasso(1)" id="link-passo1" class="sidebar-link ativo">1. Dados da Música</button>
+            <button onclick="mudarPasso(2)" id="link-passo2" class="sidebar-link">2. Criar Seções</button>
+            <button onclick="mudarPasso(3)" id="link-passo3" class="sidebar-link">3. Ordem e Dinâmicas</button>
+            <button onclick="mudarPasso(4)" id="link-passo4" class="sidebar-link">4. Visualizar Documento</button>
+        </div>
+    </nav>
+
+    <main class="main-wrapper">
+        <button class="btn-menu-flutuante no-print" onclick="toggleMenu()" title="Abrir menu">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+
+        <div class="container">
+            
+            <section id="passo1" class="passo ativo">
+                <h2>Dados da Música</h2>
+                <div class="painel-criacao-central">
+                    <div class="form-container">
+                        <div class="linha-inputs">
+                            <input type="text" id="inputTitulo" placeholder="Título da Música" class="input-titulo">
+                            <input type="text" id="inputAutor" placeholder="Autor / Banda">
+                        </div>
+                        <div class="linha-inputs mt-4">
+                            <input type="text" id="inputTom" placeholder="Tom (Ex: G)">
+                            <input type="text" id="inputBpm" placeholder="BPM (Ex: 120)">
+                            <input type="text" id="inputCompasso" placeholder="Compasso (Ex: 4/4)">
+                        </div>
+                    </div>
+                </div>
+                <div class="navegacao-passos">
+                    <button type="button" class="btn-nav btn-secundario" onclick="carregarProjeto()">
+                        Carregar Projeto Salvo
+                    </button>
+                    <input type="file" id="arquivoProjetoFallback" accept=".json" onchange="carregarProjetoLegado(event)" style="display:none;">
+                    <button class="btn-nav btn-avancar" onclick="mudarPasso(2)">Próximo Passo ➔</button>
+                </div>
+            </section>
+
+            <section id="passo2" class="passo">
+                <div class="header-secao">
+                    <h2>Criar/Editar seções</h2>
+                    <button class="btn-secundario" onclick="abrirConversor()">Abrir Conversor</button>
+                </div>
+                
+                <div class="painel-grid">
+                    <div class="formulario-card">
+                        <input type="hidden" id="editIndex" value="-1">
+                        <div class="linha-inputs mb-3">
+                            <input type="text" id="idParte" placeholder="Sigla (V1)" class="w-100px">
+                            <input type="text" id="tituloParte" placeholder="Nome (VERSO 1)">
+                            
+                            <div class="color-picker-container">
+                                <button type="button" class="color-picker-trigger" id="btnSeletorCores" onclick="togglePainelCores()"></button>
+                                <div class="color-palette-popover" id="painelCores">
+                                    <div class="palette-grid" id="gradeCoresPalette"></div>
+                                </div>
+                                <input type="hidden" id="corParte" value="#3b82f6">
+                            </div>
+                        </div>
+                        <textarea id="conteudoParte" class="cifra-input" placeholder="[C] Digite a cifra com acordes entre colchetes..."></textarea>
+                        <button class="btn-acao w-100 mt-3" id="btnSalvar" onclick="adicionarNovaParte()">+ Salvar Seção</button>
+                    </div>
+                    <div class="lista-partes" id="listaPartes"></div>
+                </div>
+
+                <div class="navegacao-passos">
+                    <button class="btn-nav btn-voltar" onclick="mudarPasso(1)">⬅ Voltar</button>
+                    <button class="btn-nav btn-avancar" onclick="mudarPasso(3)">Próximo Passo ➔</button>
+                </div>
+            </section>
+
+            <section id="passo3" class="passo">
+                <h2>Ordem e Dinâmicas</h2>
+                <div class="controles-arranjo">
+                    <div id="paleta" class="paleta-botoes"></div>
+                    <div class="caixa-preview-mapa">
+                        <div class="preview-label">Mapa Final <span>Sequência do PDF</span></div>
+                        <div id="preview-mapa" class="preview-sortable"></div>
+                    </div>
+                </div>
+
+                <div class="caixa-timeline">
+                    <div class="linha-tempo" id="linha-tempo"></div>
+                </div>
+
+                <div class="navegacao-passos">
+                    <button class="btn-nav btn-voltar" onclick="mudarPasso(2)">⬅ Voltar</button>
+                    <button class="btn-nav btn-avancar btn-pdf" onclick="gerarDocumento(); mudarPasso(4)">Gerar PDF ✔</button>
+                </div>
+            </section>
+            
+            <section id="passo4" class="passo">
+                <div class="painel-header-pdf">
+                    <div class="transpositor-container">
+                        <button onclick="transporMusica(-1)" class="btn-mini">-½ Tom</button>
+                        <span id="displayTomAtual">Tom: -</span>
+                        <button onclick="transporMusica(1)" class="btn-mini">+½ Tom</button>
+                    </div>
+
+                    <div class="acoes-finais">
+                        <button onclick="iniciarNovaMusica()" class="btn-nav btn-perigo">🗑️ Novo</button>
+                        <button onclick="salvarProjeto()" class="btn-nav btn-salvar">💾 Salvar Projeto</button>
+                        <button onclick="mudarPasso(3)" class="btn-nav btn-voltar">Editar Ordem</button>
+                        <button onclick="imprimirA4()" class="btn-nav btn-imprimir">🖨️ Imprimir PDF</button>
+                    </div>
+                </div>
+                
+                <div id="documento-container" class="folha-preview-area">
+                    </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="modalConversor" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Conversor Automático</h3>
+            <p>Cole a cifra padrão para converter ao formato do programa.</p>
+            <textarea id="textoCifraCru" placeholder="Cole aqui..."></textarea>
+            <div class="modal-footer">
+                <button class="btn-nav btn-voltar" onclick="fecharConversor()">Cancelar</button>
+                <button class="btn-acao" onclick="processarConversao()">Converter</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+<div id="toast" class="toast-notificacao"></div>
+</body>
+</html>
