@@ -1542,3 +1542,50 @@ body {
     padding: 8px !important;
     margin: 0 !important;
 }
+
+.paleta-botoes { 
+    display: flex; 
+    gap: 10px; 
+    flex-wrap: nowrap; /* Força todas as bolinhas a ficarem em uma única linha */
+    overflow-x: auto;  /* Cria a barra de rolagem horizontal */
+    padding: 10px 15px; 
+    background: #f8fafc; 
+    border: 1px solid var(--border-clara); 
+    border-radius: 10px; 
+    flex-shrink: 0;
+    flex: 1;
+    max-width: 100%;
+}
+
+.paleta-botoes > * {
+    flex-shrink: 0;
+}
+
+.caixa-preview-mapa { 
+    background: #ffffff; 
+    border: 1px solid var(--border-color); 
+    border-radius: 10px; 
+    padding: 10px 15px; 
+    margin-bottom: 0; 
+    display: flex; 
+    align-items: center; 
+    min-height: 54px; 
+    flex-shrink: 0; 
+    overflow-x: auto; /* Habilita a rolagem horizontal do mapa final */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+    flex: 1; 
+    width: 100%; 
+    max-width: 100%;
+}
+
+.preview-sortable { 
+    display: flex; 
+    gap: 10px; 
+    flex-wrap: nowrap; /* Força a sequência do PDF a ficar em uma única linha */
+    align-items: center;
+    flex: 1; 
+}
+
+.preview-sortable > * {
+    flex-shrink: 0;
+}
