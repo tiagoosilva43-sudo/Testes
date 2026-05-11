@@ -53,6 +53,12 @@ document.addEventListener("DOMContentLoaded", function() {
         aplicarTema(e.matches);
     });
 
+    // 4. Ajusta o texto do botão de impressão conforme o dispositivo real (userAgent)
+    if (esMobile()) {
+        document.querySelectorAll('.texto-imprimir-desktop').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.texto-imprimir-mobile').forEach(el => el.style.display = 'inline');
+    }
+
     // 4. Linha do Tempo (Comentários e Dinâmicas)
     new Sortable(dom.linhaTempo, {
         handle: '.drag-handle', 
@@ -771,7 +777,8 @@ function escalarPaginasA4() {
 }
 
 function esMobile() {
-    return window.innerWidth <= 768;
+    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
 function gerarCssImpressao() {
