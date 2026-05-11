@@ -770,6 +770,60 @@ function escalarPaginasA4() {
     });
 }
 
+function gerarCssImpressao() {
+    return `
+        @page { size: A4 portrait; margin: 0; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0; background: white; color: black; }
+
+        .pagina-a4 {
+            width: 210mm !important; height: 297mm !important; padding: 6mm; margin: 0; box-shadow: none;
+            display: flex !important; flex-direction: column; position: relative; overflow: hidden;
+            page-break-after: always; break-after: page; transform: none !important;
+        }
+        .pagina-a4:last-child { page-break-after: auto; break-after: auto; }
+
+        .pagina-a4-conteudo {
+            -webkit-column-count: 2 !important; column-count: 2 !important;
+            -webkit-column-gap: 30px !important; column-gap: 30px !important;
+            -webkit-column-fill: auto !important; column-fill: auto !important;
+            flex: 1; width: 100%; overflow: hidden;
+        }
+
+        .rodape-pagina { text-align: right; font-size: 11px; color: #94a3b8; padding-top: 10px; margin-top: auto; flex-shrink: 0; font-weight: 600; }
+        .cabecalho-musica { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #eee; padding-bottom: 10px; margin: 15px 20px 20px 20px; }
+        .titulo-musica { font-size: 24px; font-weight: 800; margin: 0; }
+        .meta-dados { display: flex; gap: 20px; font-size: 12px; color: #666; font-weight: bold; }
+        .meta-dados span { color: #000; font-weight: normal; margin-left: 4px; }
+        .mapa-impresso { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 15px 20px 20px; }
+        .bolinha-wrapper { position: relative; display: inline-block; }
+        .bolinha-impressa { width: 22px; height: 22px; border-radius: 50%; border: 2px solid; display: flex; justify-content: center; align-items: center; font-weight: bold; background: white; color: #000 !important; font-size: 10px; z-index: 1; position: relative; }
+        .expoente-repeticao { position: absolute; top: -5px; right: -5px; font-size: 11px; font-weight: 900; color: #000; z-index: 2; background: white; border-radius: 50%; padding: 0 2px; }
+
+        .secao { position: relative; display: inline-block; width: 100%; border: 2px solid #e0e0e0; border-radius: 12px; padding: 16px 15px 8px 15px; margin-top: 16px; margin-bottom: 8px; background: white; break-inside: avoid; page-break-inside: avoid; }
+        .cabecalho-balao { display: block; width: 100%; }
+        .linha-musica { display: flex !important; flex-wrap: wrap; margin-bottom: 8px; break-inside: avoid; page-break-inside: avoid; }
+        .titulo-secao { position: absolute; top: -14px; left: 12px; font-weight: bold; background: white; padding: 0 10px 0 5px; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+        .mini-bolinha { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid; display: flex; justify-content: center; align-items: center; font-weight: 700; background: white; color: #000 !important; font-size: 9px; }
+        .comentario-container { display: block; width: 100%; padding-top: 0; text-align: right; margin-bottom: 2px; }
+        .comentario-pdf { color: #666; font-size: 13px; white-space: pre-wrap; word-break: break-word; line-height: 1.3; text-align: right; }
+        .secao-conteudo { padding-top: 5px; padding-bottom: 6px; display: flex !important; flex-direction: column; }
+        .bloco-acorde { display: flex !important; flex-direction: column; justify-content: flex-end; }
+        .acorde { font-weight: bold; font-size: 13px; color: #000; line-height: 1; margin-bottom: 2px; margin-right: 5px; }
+        .letra { font-size: 13px; color: #333; white-space: pre; line-height: 1.1; }
+        .so-cifra .letra { display: none; }
+        .so-cifra .acorde { margin-right: 6px; }
+        .so-cifra .bloco-acorde { margin-right: 0px; }
+        .secao-conteudo.so-cifra { padding-top: 6px; padding-bottom: 0px; display: flex !important; flex-direction: column; }
+
+        @media print {
+            body { margin: 0; padding: 0; }
+            .pagina-a4 { width: 210mm !important; height: 297mm !important; transform: none !important; }
+            .pagina-a4-conteudo { -webkit-column-count: 2 !important; column-count: 2 !important; -webkit-column-gap: 30px !important; column-gap: 30px !important; }
+        }
+    `;
+}
+
 function imprimirA4() {
     // Clona o container e remove qualquer transform de escala mobile antes de imprimir
     const clone = dom.docContainer.cloneNode(true);
@@ -780,111 +834,57 @@ function imprimirA4() {
     });
     const conteudoFormatado = clone.innerHTML;
 
+    const htmlCompleto = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Cifra A4</title>
+    <meta name="viewport" content="width=210mm">
+    <style>${gerarCssImpressao()}</style>
+</head>
+<body>${conteudoFormatado}</body>
+</html>`;
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (isIOS) {
+        // iOS (Safari e Chrome): iframe.print() não funciona — abre nova aba e imprime dela
+        const blob = new Blob([htmlCompleto], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const janela = window.open(url, '_blank');
+        if (janela) {
+            janela.onload = function() {
+                setTimeout(() => {
+                    janela.focus();
+                    janela.print();
+                    URL.revokeObjectURL(url);
+                }, 400);
+            };
+        } else {
+            // Popup bloqueado — fallback: abre a URL diretamente
+            window.location.href = url;
+        }
+        return;
+    }
+
+    // Desktop e Android: usa iframe oculto
     let iframe = document.getElementById('iframe-impressao');
     if (!iframe) {
         iframe = document.createElement('iframe');
         iframe.id = 'iframe-impressao';
-        iframe.style.position = 'absolute';
-        iframe.style.width = '0px'; 
-        iframe.style.height = '0px'; 
-        iframe.style.border = 'none';
+        iframe.style.cssText = 'position:absolute;width:0;height:0;border:none;left:-9999px;top:-9999px;';
         document.body.appendChild(iframe);
     }
 
     const doc = iframe.contentWindow.document;
     doc.open();
-    // Injeta a estrutura exata do estilo de impressão para o iframe nativo
-    doc.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Cifra A4</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                @page { size: A4 portrait; margin: 0; }
-
-                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
-
-                body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0; background: white; color: black; }
-
-                .pagina-a4 {
-                    width: 210mm !important; height: 297mm !important; padding: 6mm; margin: 0; box-shadow: none;
-                    display: flex !important; flex-direction: column; position: relative; overflow: hidden;
-                    page-break-after: always; break-after: page;
-                    transform: none !important;
-                }
-                .pagina-a4:last-child { page-break-after: auto; break-after: auto; }
-
-                .pagina-a4-conteudo {
-                    column-count: 2 !important;
-                    -webkit-column-count: 2 !important;
-                    column-gap: 30px !important;
-                    column-fill: auto !important;
-                    flex: 1; width: 100%; overflow: hidden;
-                }
-
-                .rodape-pagina { text-align: right; font-size: 11px; color: #94a3b8; padding-top: 10px; margin-top: auto; flex-shrink: 0; font-weight: 600; }
-
-                .cabecalho-musica { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #eee; padding-bottom: 10px; margin: 15px 20px 20px 20px; }
-                .titulo-musica { font-size: 24px; font-weight: 800; margin: 0; }
-                .meta-dados { display: flex; gap: 20px; font-size: 12px; color: #666; font-weight: bold; }
-                .meta-dados span { color: #000; font-weight: normal; margin-left: 4px; }
-                .mapa-impresso { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 15px 20px 20px; }
-                .bolinha-wrapper { position: relative; display: inline-block; }
-                .bolinha-impressa { width: 22px; height: 22px; border-radius: 50%; border: 2px solid; display: flex; justify-content: center; align-items: center; font-weight: bold; background: white; color: #000 !important; font-size: 10px; z-index: 1; position: relative; }
-                .expoente-repeticao { position: absolute; top: -5px; right: -5px; font-size: 11px; font-weight: 900; color: #000; z-index: 2; background: white; border-radius: 50%; padding: 0 2px; }
-
-                .secao {
-                    position: relative; display: inline-block; width: 100%; border: 2px solid #e0e0e0;
-                    border-radius: 12px; padding: 16px 15px 8px 15px; margin-top: 16px; margin-bottom: 8px;
-                    background: white; break-inside: avoid; page-break-inside: avoid;
-                }
-
-                .cabecalho-balao { display: block; width: 100%; }
-                .linha-musica { display: flex !important; flex-wrap: wrap; margin-bottom: 8px; break-inside: avoid; page-break-inside: avoid; }
-
-                .titulo-secao { position: absolute; top: -14px; left: 12px; font-weight: bold; background: white; padding: 0 10px 0 5px; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
-                .mini-bolinha { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid; display: flex; justify-content: center; align-items: center; font-weight: 700; background: white; color: #000 !important; font-size: 9px; }
-
-                .comentario-container { display: block; width: 100%; padding-top: 0; text-align: right; margin-bottom: 2px; }
-                .comentario-pdf { color: #666; font-size: 13px; font-style: normal; white-space: pre-wrap; word-break: break-word; line-height: 1.3; text-align: right; }
-
-                .secao-conteudo { padding-top: 5px; padding-bottom: 6px; display: flex !important; flex-direction: column; }
-                .bloco-acorde { display: flex !important; flex-direction: column; justify-content: flex-end; }
-                .acorde { font-weight: bold; font-size: 13px; color: #000; line-height: 1; margin-bottom: 2px; margin-right: 5px; }
-                .letra { font-size: 13px; color: #333; white-space: pre; line-height: 1.1; }
-                .so-cifra .letra { display: none; }
-                .so-cifra .acorde { margin-right: 6px; }
-                .so-cifra .bloco-acorde { margin-right: 0px; }
-                .secao-conteudo.so-cifra { padding-top: 6px; padding-bottom: 0px; display: flex !important; flex-direction: column; }
-
-                /* Garante colunas na impressão em qualquer dispositivo */
-                @media print {
-                    body { margin: 0; padding: 0; }
-                    .pagina-a4 {
-                        width: 210mm !important;
-                        height: 297mm !important;
-                        transform: none !important;
-                    }
-                    .pagina-a4-conteudo {
-                        column-count: 2 !important;
-                        -webkit-column-count: 2 !important;
-                        column-gap: 30px !important;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            ${conteudoFormatado}
-        </body>
-        </html>
-    `);
+    doc.write(htmlCompleto);
     doc.close();
 
     setTimeout(() => {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
-    }, 250);
+    }, 300);
 }
 // ================= SISTEMA DE TOAST E TEMA ESCURO =================
 function mostrarToast(mensagem) {
