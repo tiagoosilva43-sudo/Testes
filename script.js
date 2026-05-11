@@ -857,7 +857,7 @@ document.addEventListener('touchend', function(e) {
         
         // 1. Puxar da esquerda para a direita (Abrir menu)
         // Só ativa se o puxão começar perto da borda esquerda (< 50px) para não abrir sem querer ao digitar
-        if (distanciaX > 60 && toqueInicialX < 50) {
+        if (distanciaX > 60) {
             dom.sidebar.classList.remove('fechado');
         }
         
