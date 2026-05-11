@@ -56,7 +56,9 @@ document.addEventListener("DOMContentLoaded", function() {
     // 4. Linha do Tempo (Comentários e Dinâmicas)
     new Sortable(dom.linhaTempo, {
         handle: '.drag-handle', 
-        animation: 200,         
+        animation: 200,
+        delay: 200,
+        delayOnTouchOnly: true,
         ghostClass: 'sortable-ghost',
         onEnd: function (evt) {
             const itemMovido = mapaAtual.splice(evt.oldIndex, 1)[0];
@@ -69,6 +71,8 @@ document.addEventListener("DOMContentLoaded", function() {
     new Sortable(dom.previewMapa, {
         filter: '.nao-arrastavel, .btn-excluir-preview',
         animation: 200,
+        delay: 200,
+        delayOnTouchOnly: true,
         ghostClass: 'sortable-ghost',
         onEnd: function (evt) {
             const nodes = Array.from(dom.previewMapa.children);
@@ -99,7 +103,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
 // ================= NAVEGAÇÃO E CONTROLES GERAIS =================
 function toggleMenu() { 
-    dom.sidebar.classList.toggle('fechado'); 
+    dom.sidebar.classList.toggle('fechado');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) overlay.classList.toggle('ativo', !dom.sidebar.classList.contains('fechado'));
 }
 
 function mudarPasso(n) {
@@ -134,6 +140,8 @@ function mudarPasso(n) {
     document.getElementById('link-passo' + n).classList.add('ativo');
 
     dom.sidebar.classList.add('fechado');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) overlay.classList.remove('ativo');
 
     if(n === 2) atualizarUI();
     if(n === 3) renderizarTimeline(); 
@@ -677,19 +685,19 @@ function criarPaginaA4(isFirst, pageNum) {
 }
 
 function gerarDocumento() {
-    dom.docContainer.innerHTML = ''; 
-    
+    dom.docContainer.innerHTML = '';
+
     let baloes = [];
     mapaAtual.forEach(inst => {
-        if (inst.ocultar) return; 
+        if (inst.ocultar) return;
         if (baloes.length > 0 && baloes[baloes.length-1].id === inst.id && inst.mesclar) {
             baloes[baloes.length-1].count++;
             if (inst.com) baloes[baloes.length-1].coms.push(inst.com);
-        } else { 
-            baloes.push({ ...inst, count: 1, coms: inst.com ? [inst.com] : [] }); 
+        } else {
+            baloes.push({ ...inst, count: 1, coms: inst.com ? [inst.com] : [] });
         }
     });
-    
+
     let pageNum = 1;
     let currentPage = criarPaginaA4(true, pageNum);
     let contentEl = currentPage.querySelector('.pagina-a4-conteudo');
@@ -702,7 +710,7 @@ function gerarDocumento() {
         const classSoCifra = textoSemAcordes.length > 0 ? '' : 'so-cifra';
 
         const divBalao = document.createElement('div');
-        divBalao.className = `secao`;
+        divBalao.className = 'secao';
         divBalao.innerHTML = `
             <div class="cabecalho-balao">
                 <div class="titulo-secao">
@@ -715,12 +723,10 @@ function gerarDocumento() {
                 ${compilarCifra(b.c)}
             </div>
         `;
-        
+
         contentEl.appendChild(divBalao);
 
-        // Verifica transbordo dinâmico para garantir que tudo caiba na folha
         const excedeuLimite = contentEl.scrollWidth > contentEl.clientWidth + 5;
-        
         if (excedeuLimite && contentEl.children.length > 1) {
             contentEl.removeChild(divBalao);
             pageNum++;
@@ -731,13 +737,48 @@ function gerarDocumento() {
     });
 
     document.querySelectorAll('.rodape-pagina').forEach(f => {
-        const p = f.getAttribute('data-page');
-        f.innerText = `Página ${p} de ${pageNum}`;
+        f.innerText = `Página ${f.getAttribute('data-page')} de ${pageNum}`;
+    });
+
+    // Aplica escala nas páginas A4 para caber na largura do dispositivo
+    escalarPaginasA4();
+}
+
+function escalarPaginasA4() {
+    const area = dom.docContainer.parentElement; // .folha-preview-area
+    if (!area) return;
+
+    // Largura disponível descontando o padding da área (30px cada lado no desktop, 8px no mobile)
+    const paddingH = window.innerWidth <= 768 ? 16 : 60;
+    const larguraDisponivel = area.clientWidth - paddingH;
+
+    // Largura real da página A4 em pixels (210mm a 96dpi ≈ 794px)
+    const larguraA4px = 794;
+
+    const escala = Math.min(1, larguraDisponivel / larguraA4px);
+
+    document.querySelectorAll('.pagina-a4').forEach(pagina => {
+        if (escala < 1) {
+            pagina.style.transform = `scale(${escala})`;
+            pagina.style.transformOrigin = 'top center';
+            // Ajusta a altura do wrapper para não deixar espaço em branco
+            pagina.style.marginBottom = `${-(pagina.offsetHeight * (1 - escala))}px`;
+        } else {
+            pagina.style.transform = '';
+            pagina.style.marginBottom = '';
+        }
     });
 }
 
 function imprimirA4() {
-    const conteudoFormatado = dom.docContainer.innerHTML;
+    // Clona o container e remove qualquer transform de escala mobile antes de imprimir
+    const clone = dom.docContainer.cloneNode(true);
+    clone.querySelectorAll('.pagina-a4').forEach(p => {
+        p.style.transform = '';
+        p.style.transformOrigin = '';
+        p.style.marginBottom = '';
+    });
+    const conteudoFormatado = clone.innerHTML;
 
     let iframe = document.getElementById('iframe-impressao');
     if (!iframe) {
@@ -836,34 +877,44 @@ function toggleDarkMode() {
     const isDark = document.body.classList.contains('dark');
     localStorage.setItem('temaCifrasStudio', isDark ? 'escuro' : 'claro');
 }
-// ================= GESTOS MOBILE (SWIPE PARA MENU) =================
-let toqueInicialX = 0;
-let toqueInicialY = 0;
 
-document.addEventListener('touchstart', function(e) {
-    toqueInicialX = e.changedTouches[0].screenX;
-    toqueInicialY = e.changedTouches[0].screenY;
-}, { passive: true });
+// ================= SWIPE PARA ABRIR/FECHAR SIDEBAR (MOBILE) =================
+(function() {
+    const SWIPE_ZONE = 30;      // px da borda esquerda que ativa o gesto de abrir
+    const SWIPE_MIN  = 50;      // deslocamento mínimo em px para considerar swipe
 
-document.addEventListener('touchend', function(e) {
-    const toqueFinalX = e.changedTouches[0].screenX;
-    const toqueFinalY = e.changedTouches[0].screenY;
-    
-    const distanciaX = toqueFinalX - toqueInicialX;
-    const distanciaY = Math.abs(toqueFinalY - toqueInicialY);
-    
-    // Garante que o usuário arrastou para o lado, e não rolando a tela para baixo
-    if (distanciaY < 50) {
-        
-        // 1. Puxar da esquerda para a direita (Abrir menu)
-        // Só ativa se o puxão começar perto da borda esquerda (< 50px) para não abrir sem querer ao digitar
-        if (distanciaX > 60) {
-            dom.sidebar.classList.remove('fechado');
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let swipeAtivo  = false;
+
+    document.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        // Só ativa o gesto de abrir se o toque começar na borda esquerda
+        swipeAtivo = touchStartX <= SWIPE_ZONE;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+
+        // Ignora se o movimento foi mais vertical do que horizontal
+        if (Math.abs(dy) > Math.abs(dx)) return;
+
+        const sidebar  = dom.sidebar;
+        const overlay  = document.getElementById('sidebar-overlay');
+        const fechado  = sidebar.classList.contains('fechado');
+
+        if (swipeAtivo && dx > SWIPE_MIN && fechado) {
+            // Swipe direita na borda → abre
+            sidebar.classList.remove('fechado');
+            if (overlay) overlay.classList.add('ativo');
+        } else if (!fechado && dx < -SWIPE_MIN) {
+            // Swipe esquerda em qualquer lugar → fecha
+            sidebar.classList.add('fechado');
+            if (overlay) overlay.classList.remove('ativo');
         }
-        
-        // 2. Puxar da direita para a esquerda (Fechar menu)
-        else if (distanciaX < -60 && !dom.sidebar.classList.contains('fechado')) {
-            dom.sidebar.classList.add('fechado');
-        }
-    }
-}, { passive: true });
+
+        swipeAtivo = false;
+    }, { passive: true });
+})();

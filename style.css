@@ -34,7 +34,6 @@ body {
     height: 100vh; 
     overflow: hidden; 
     display: flex; 
-	touch-action: manipulation;
 }
 
 /* ================= CLASSES UTILITÁRIAS ================= */
@@ -1346,173 +1345,371 @@ body.dark .pagina-a4 .expoente-repeticao {
     transform: translateY(0);
 }
 
+/* ================= OVERLAY DA SIDEBAR MOBILE ================= */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 150;
+    backdrop-filter: blur(2px);
+}
+
+/* O overlay só é visível em telas mobile */
+@media (max-width: 768px) {
+    .sidebar-overlay.ativo {
+        display: block;
+    }
+}
+
 /* ================= RESPONSIVIDADE (MOBILE / TABLET) ================= */
 @media (max-width: 768px) {
-body {
-    height: 100dvh;
-    overflow-y: hidden;
-}
-    
-.main-wrapper {
-    padding: 10px;
-	height: 100dvh;
-	displey: flex;
-	flex-direction: column;
-    overflow: hidden;
-}
-    
-.container {
-    flex: 1;
-	height: 100%;
-    padding: 12px;
-	display: flex;
-	flex-direction: column;
-	overflow-y: auto;
-}
 
-.linha-inputs, 
-.form-container, 
-.painel-grid, 
-.controles-arranjo {
-    flex-direction: column;
-}
-    
-.linha-tempo {
-    display: flex; /* Transforma as 2 colunas em lista vertical na tela pequena */
-    flex-direction: column;
-}
+    /* --- BASE: tela fixa, sem scroll na página --- */
+    body {
+        height: 100dvh;
+        overflow: hidden;
+        display: flex;
+    }
 
-.w-100px { width: 100%; }
+    /* --- LAYOUT PRINCIPAL --- */
+    .main-wrapper {
+        padding: 0;
+        align-items: stretch;
+        justify-content: stretch;
+        width: 100%;
+    }
 
-.sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100%;
-    box-shadow: 10px 0 25px rgba(0,0,0,0.5);
-}
-    
-.painel-header-pdf {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-}
-    
-.acoes-finais {
-    justify-content: space-between;
-}
+    /* Container ocupa a tela toda e organiza em coluna */
+    .container {
+        max-height: none;
+        height: 100dvh;
+        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-width: 0;
+        width: 100%;
+    }
 
-.btn-nav, 
-.btn-acao, 
-.btn-secundario, 
-.btn-perigo, 
-.btn-salvar, 
-.btn-imprimir {
-    padding: 8px 12px !important;
-    font-size: 13px !important;
-    gap: 4px !important;
-}
+    /* Cada passo ocupa o espaço disponível e organiza em coluna */
+    .passo {
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 16px 16px 0 16px;
+    }
 
-.navegacao-passos {
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 12px;
-    margin-top: 12px;
-}
+    .passo.ativo {
+        display: flex;
+    }
 
-.navegacao-passos .btn-nav {
-    flex: 1;
-    min-width: 130px;
-    text-align: center;
-    justify-content: center;
-}
+    h2 {
+        font-size: 18px;
+        flex-shrink: 0;
+    }
 
-.painel-header-pdf {
-    padding: 12px;
-    gap: 12px;
-    flex-direction: column;
-    align-items: stretch;
-}
+    /* Área de conteúdo scrollável dentro do passo */
+    .painel-criacao-central,
+    .painel-grid,
+    .controles-arranjo-wrapper {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
 
-.acoes-finais {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    width: 100%;
-}
+    /* --- BOTÃO FLUTUANTE: escondido no mobile (swipe substitui) --- */
+    .btn-menu-flutuante {
+        display: none;
+    }
 
-.acoes-finais .btn-nav {
-    width: 100%;
-    margin: 0;
-}
-    
-.btn-menu-flutuante {
-    display: none !important;
-}
+    /* --- SIDEBAR MOBILE (DRAWER SOBREPOSTO) --- */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 200;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.4);
+    }
 
-.painel-grid {
-    display: flex !important;
-    flex-direction: column-reverse !important;
-    gap: 10px !important;
-    padding: 12px !important; /* Ganha área útil na tela */
-}
+    .sidebar.fechado {
+        margin-left: -260px;
+    }
 
-.lista-partes {
-    max-height: 110px !important; /* Fica mais curto para priorizar o formulário */
-    overflow-y: auto !important;
-    padding: 6px !important;
-}
+    /* --- INPUTS E FORMULÁRIOS --- */
+    .linha-inputs {
+        flex-direction: column;
+        gap: 10px;
+    }
 
-.formulario-card .linha-inputs {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important; /* Força o alinhamento no centro vertical */
-    justify-content: space-between !important;
-    gap: 6px !important;
-    margin-bottom: 8px !important;
-}
+    .form-container {
+        gap: 10px;
+    }
 
-.formulario-card .linha-inputs #idParte {
-    width: 60px !important;
-    padding: 6px 4px !important;
-    text-align: center;
-    margin: 0 !important;
-}
+    .w-100px {
+        width: 100%;
+    }
 
-.formulario-card .linha-inputs #tituloParte {
-    flex: 1 !important;
-    padding: 6px 8px !important;
-    margin: 0 !important;
-}
+    .input-titulo {
+        font-size: 16px;
+    }
 
-.formulario-card .color-picker-container {
-    width: 32px !important;
-    height: 32px !important;
-    flex-shrink: 0 !important;
-    margin: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-}
+    /* --- PASSO 1: botões lado a lado --- */
+    .painel-criacao-central {
+        padding: 16px;
+        justify-content: flex-start;
+    }
 
-.color-picker-trigger {
-    width: 32px !important;
-    height: 32px !important;
-    margin: 0 !important;
-}
+    #passo1 .navegacao-passos {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
 
-textarea.cifra-input {
-    height: 115px !important; /* Tamanho reduzido para não gerar barra de rolagem no celular */
-    min-height: 115px !important;
-    padding: 8px !important;
-    font-size: 13px !important;
-}
+    #passo1 .navegacao-passos .btn-avancar {
+        margin-left: 0;
+    }
 
-.formulario-card {
-    padding: 10px !important;
-    gap: 8px !important;
-}
+    /* --- PASSO 2 --- */
+    .header-secao {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+    }
 
-.formulario-card .btn-acao {
-    padding: 8px !important;
-    margin-top: 2px !important;
+    .header-secao h2 {
+        border: none;
+        padding: 0;
+        margin: 0;
+        font-size: 16px;
+    }
+
+    /* painel-grid: lista em cima, formulário embaixo, tudo dentro do espaço disponível */
+    .painel-grid {
+        flex-direction: column;
+        padding: 10px;
+        gap: 10px;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+    }
+
+    /* Lista de seções salvas: aparece no topo com altura fixa e scroll */
+    .lista-partes {
+        order: -1;
+        flex: none;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+
+    /* Formulário: ocupa o espaço restante */
+    .formulario-card {
+        order: 0;
+        overflow-y: visible;
+        padding-right: 0;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* Linha sigla + título + cor: sempre em linha única, sem quebrar */
+    .formulario-card .linha-inputs.mb-3 {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Sigla: largura fixa pequena */
+    .formulario-card .linha-inputs.mb-3 #idParte {
+        width: 68px !important;
+        min-width: 68px;
+        flex-shrink: 0;
+        padding: 10px 8px;
+    }
+
+    /* Título: ocupa o espaço restante */
+    .formulario-card .linha-inputs.mb-3 #tituloParte {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* Seletor de cor: não encolhe */
+    .formulario-card .linha-inputs.mb-3 .color-picker-container {
+        flex-shrink: 0;
+    }
+
+    /* Textarea da cifra: cresce para preencher o espaço disponível */
+    .cifra-input {
+        flex: 1;
+        min-height: 80px;
+    }
+
+    /* --- PASSO 3 --- */
+
+    /* Paleta de bolinhas: scroll horizontal, altura fixa, sem crescer */
+    .controles-arranjo {
+        flex-direction: column;
+        gap: 8px;
+        flex-shrink: 0;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .paleta-botoes {
+        flex: none !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        overflow-y: visible;
+        width: 100%;
+        min-width: 0;
+        padding: 10px 12px;
+        gap: 10px;
+        height: auto;
+        align-items: center;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        box-sizing: border-box;
+    }
+
+    /* Bolinhas não encolhem dentro do scroll */
+    .paleta-botoes .bolinha {
+        flex-shrink: 0;
+    }
+
+    /* Mapa final: scroll horizontal, altura fixa */
+    .caixa-preview-mapa {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        min-height: 54px;
+        max-height: 54px;
+        padding: 8px 12px;
+        align-items: center;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    .preview-sortable {
+        flex-wrap: nowrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    /* Timeline: coluna única, um item por linha */
+    .caixa-timeline {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        margin-top: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .linha-tempo {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        grid-template-columns: none;
+    }
+
+    .item-linha-tempo {
+        padding: 12px;
+        width: 100%;
+    }
+
+    .area-comentario {
+        height: 65px;
+        font-size: 14px;
+    }
+
+    /* --- PASSO 4 --- */
+    .painel-header-pdf {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+        flex-shrink: 0;
+        margin-bottom: 10px;
+    }
+
+    .transpositor-container {
+        justify-content: center;
+    }
+
+    .acoes-finais {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .acoes-finais .btn-nav {
+        padding: 10px 8px;
+        font-size: 13px;
+        justify-content: center;
+    }
+
+    /* Área de preview: scroll vertical, sem cortar a página escalada */
+    .folha-preview-area {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 8px;
+        gap: 16px;
+        align-items: center;
+    }
+
+    /* Página A4: mantém dimensões reais, a escala é aplicada via JS */
+    .pagina-a4 {
+        flex-shrink: 0;
+        /* transform-origin definido inline pelo JS */
+    }
+
+    /* --- BOTÕES DE NAVEGAÇÃO: sempre fixos na base --- */
+    .navegacao-passos {
+        flex-shrink: 0;
+        padding: 12px 0 16px 0;
+        margin-top: 8px;
+        gap: 10px;
+    }
+
+    .btn-nav {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    .btn-avancar {
+        margin-left: auto;
+    }
+
+    /* --- MODAL --- */
+    .modal-content {
+        padding: 20px;
+        border-radius: 12px;
+        max-height: 90dvh;
+        overflow-y: auto;
+    }
+
+    #textoCifraCru {
+        height: 180px;
+    }
+
+    /* --- TOAST --- */
+    .toast-notificacao {
+        bottom: 16px;
+        right: 12px;
+        left: 12px;
+        text-align: center;
+    }
 }
