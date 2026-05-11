@@ -1348,105 +1348,157 @@ body.dark .pagina-a4 .expoente-repeticao {
 
 /* ================= RESPONSIVIDADE (MOBILE / TABLET) ================= */
 @media (max-width: 768px) {
-    body {
-        height: 100dvh;
-        overflow-y: hidden;
-    }
+body {
+    height: 100dvh;
+    overflow-y: hidden;
+}
     
-    .main-wrapper {
-        padding: 10px;
+.main-wrapper {
+    padding: 10px;
 	height: 100dvh;
 	displey: flex;
 	flex-direction: column;
-        overflow: hidden;
-    }
+    overflow: hidden;
+}
     
-    .container {
-        flex: 1;
+.container {
+    flex: 1;
 	height: 100%;
-        padding: 12px;
+    padding: 12px;
 	display: flex;
 	flex-direction: column;
 	overflow-y: auto;
-    }
+}
 
-    .linha-inputs, 
-    .form-container, 
-    .painel-grid, 
-    .controles-arranjo {
-        flex-direction: column;
-    }
+.linha-inputs, 
+.form-container, 
+.painel-grid, 
+.controles-arranjo {
+    flex-direction: column;
+}
     
-    .linha-tempo {
-        display: flex; /* Transforma as 2 colunas em lista vertical na tela pequena */
-        flex-direction: column;
-    }
+.linha-tempo {
+    display: flex; /* Transforma as 2 colunas em lista vertical na tela pequena */
+    flex-direction: column;
+}
 
-    .w-100px { width: 100%; }
+.w-100px { width: 100%; }
 
-    .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        height: 100%;
-        box-shadow: 10px 0 25px rgba(0,0,0,0.5);
-    }
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    box-shadow: 10px 0 25px rgba(0,0,0,0.5);
+}
     
-    .painel-header-pdf {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-    }
+.painel-header-pdf {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
     
-    .acoes-finais {
-        justify-content: space-between;
-    }
+.acoes-finais {
+    justify-content: space-between;
+}
 
-    .btn-nav, 
-    .btn-acao, 
-    .btn-secundario, 
-    .btn-perigo, 
-    .btn-salvar, 
-    .btn-imprimir {
-        padding: 8px 12px !important;
-        font-size: 13px !important;
-        gap: 4px !important;
-    }
+.btn-nav, 
+.btn-acao, 
+.btn-secundario, 
+.btn-perigo, 
+.btn-salvar, 
+.btn-imprimir {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    gap: 4px !important;
+}
 
-    .navegacao-passos {
-        flex-wrap: wrap;
-        gap: 8px;
-        padding-top: 12px;
-        margin-top: 12px;
-    }
+.navegacao-passos {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 12px;
+    margin-top: 12px;
+}
 
-    .navegacao-passos .btn-nav {
-        flex: 1;
-        min-width: 130px;
+.navegacao-passos .btn-nav {
+    flex: 1;
+    min-width: 130px;
+    text-align: center;
+    justify-content: center;
+}
+
+.painel-header-pdf {
+    padding: 12px;
+    gap: 12px;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.acoes-finais {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+}
+
+.acoes-finais .btn-nav {
+    width: 100%;
+    margin: 0;
+}
+    
+.btn-menu-flutuante {
+    display: none !important;
+}
+
+.painel-grid {
+    display: flex !important;
+    flex-direction: column-reverse !important;
+    gap: 16px !important;
+}
+
+.lista-partes {
+    max-height: 140px !important; /* Mostra ~3 itens por vez */
+    overflow-y: auto !important;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px !important;
+    background-color: var(--bg-card);
+}
+
+.formulario-card .linha-inputs {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+}
+
+.formulario-card .linha-inputs #idParte {
+        width: 65px !important; /* Espaço exato para "V1", "C1" */
+        padding: 8px 6px !important;
         text-align: center;
-        justify-content: center;
-    }
+}
 
-    .painel-header-pdf {
-        padding: 12px;
-        gap: 12px;
-        flex-direction: column;
-        align-items: stretch;
-    }
+.formulario-card .linha-inputs #tituloParte {
+    flex: 1 !important; /* Ocupa todo o espaço restante no meio */
+    padding: 8px 10px !important;
+}
 
-    .acoes-finais {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        width: 100%;
-    }
+.formulario-card .color-picker-container {
+    flex-shrink: 0 !important;
+}
 
-    .acoes-finais .btn-nav {
-        width: 100%;
-        margin: 0;
-    }
-    
-    .btn-menu-flutuante {
-        display: none !important;
-    }
+.color-picker-trigger {
+    width: 34px !important;
+    height: 34px !important;
+}
+
+textarea.cifra-input {
+    height: 160px !important;
+    padding: 10px !important;
+    font-size: 13px !important;
+}
+
+.formulario-card {
+    padding: 12px !important;
 }
