@@ -1374,7 +1374,9 @@ body {
 .form-container, 
 .painel-grid, 
 .controles-arranjo {
-    flex-direction: column;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important; 
 }
     
 .linha-tempo {
@@ -1544,18 +1546,24 @@ body {
 }
 
 .paleta-botoes { 
+    display: flex !important;
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
-    flex-shrink: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-bottom: 8px !important; /* Dá espaço para a barra nativa do celular */
 }
 
 .caixa-preview-mapa {
+    width: 100% !important;
+    max-width: 100% !important;
     overflow-x: auto !important;
-    flex-shrink: 0 !important;
 }
 
 .preview-sortable {
+    display: flex !important;
     flex-wrap: nowrap !important;
+    width: max-content !important; /* Deixa os itens crescerem internamente para gerar o scroll */
 }
 	
 .paleta-botoes > *,
