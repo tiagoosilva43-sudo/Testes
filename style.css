@@ -1,884 +1,1564 @@
-"use strict";
-
-// ================= VARIÁVEIS GERAIS DE ESTADO =================
-let bancoDePartes = [];
-let mapaAtual = [];
-let mapGroupsGlobais = [];
-let handleArquivoAtual = null; // Reteem a permissão de sobrescrita nativa do arquivo .json
-
-const regexAcordeGlobal = /\b([A-G][b#]?(2|4|5|6|7|9|11|13|maj|min|m|sus|dim|aug)*(\/[A-G][b#]?)?)\b/g;
-
-// MAPEAMENTO DO DOM
-const dom = {
-    inputTitulo: document.getElementById('inputTitulo'),
-    inputAutor: document.getElementById('inputAutor'),
-    inputTom: document.getElementById('inputTom'),
-    inputBpm: document.getElementById('inputBpm'),
-    inputCompasso: document.getElementById('inputCompasso'),
-    idParte: document.getElementById('idParte'),
-    tituloParte: document.getElementById('tituloParte'),
-    conteudoParte: document.getElementById('conteudoParte'),
-    corParte: document.getElementById('corParte'),
-    editIndex: document.getElementById('editIndex'),
-    btnSalvar: document.getElementById('btnSalvar'),
-    listaPartes: document.getElementById('listaPartes'),
-    paleta: document.getElementById('paleta'),
-    linhaTempo: document.getElementById('linha-tempo'),
-    previewMapa: document.getElementById('preview-mapa'),
-    modal: document.getElementById('modalConversor'),
-    textoConversor: document.getElementById('textoCifraCru'),
-    sidebar: document.getElementById('sidebar'),
-    docContainer: document.getElementById('documento-container')
-};
-
-// ================= INICIALIZAÇÃO DO DRAG AND DROP (SORTABLE.JS) =================
-document.addEventListener("DOMContentLoaded", function() {
-// 1. Define a função que aplica o tema
-    const aplicarTema = (deveSerEscuro) => {
-        if (deveSerEscuro) {
-            document.body.classList.add('dark');
-        } else {
-            document.body.classList.remove('dark');
-        }
-    };
-
-    // 2. PRIORIDADE: Verifica o que o sistema/navegador está usando AGORA
-    const prefereEscuroPeloSistema = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+/* ================= VARIÁVEIS GERAIS DE TEMA ================= */
+:root {
+    --bg-main: #e2e8f0;
+    --bg-card: #ffffff;
+    --text-escuro: #0f172a;
+    --text-padrao: #1e293b;
+    --text-mutado: #64748b;
+    --text-claro: #94a3b8;
     
-    // Aplica o tema do sistema imediatamente ao abrir
-    aplicarTema(prefereEscuroPeloSistema);
-
-    // 3. Ouvinte para mudar o tema em tempo real caso você mude a configuração do Windows com o app aberto
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-        aplicarTema(e.matches);
-    });
-
-    // 4. Linha do Tempo (Comentários e Dinâmicas)
-    new Sortable(dom.linhaTempo, {
-        handle: '.drag-handle', 
-        animation: 200,         
-        ghostClass: 'sortable-ghost',
-        onEnd: function (evt) {
-            const itemMovido = mapaAtual.splice(evt.oldIndex, 1)[0];
-            mapaAtual.splice(evt.newIndex, 0, itemMovido);
-            renderizarTimeline();
-        }
-    });
-
-    // 5. Mapa Final (Preview superior)
-    new Sortable(dom.previewMapa, {
-        filter: '.nao-arrastavel, .btn-excluir-preview',
-        animation: 200,
-        ghostClass: 'sortable-ghost',
-        delay: 150,             
-        delayOnTouchOnly: true, 
-        onEnd: function (evt) {
-            const nodes = Array.from(dom.previewMapa.children);
-            let novoMapa = [];
-            nodes.forEach(node => {
-                const gIdx = node.getAttribute('data-group-index');
-                if (gIdx !== null) {
-                    novoMapa.push(...mapGroupsGlobais[gIdx]); 
-                }
-            });
-            mapaAtual = novoMapa;
-            renderizarTimeline(); 
-        }
-    });
-        onEnd: function (evt) {
-            const nodes = Array.from(dom.previewMapa.children);
-            let novoMapa = [];
-            nodes.forEach(node => {
-                const gIdx = node.getAttribute('data-group-index');
-                if (gIdx !== null) {
-                    novoMapa.push(...mapGroupsGlobais[gIdx]); 
-                }
-            });
-            mapaAtual = novoMapa;
-            renderizarTimeline(); 
-        }
-    });
-
-    // 6. Banco de Partes Salvas (Permite reordenar as seções criadas no Passo 2)
-    new Sortable(dom.listaPartes, {
-        handle: '.drag-handle-banco',
-        animation: 200,
-        ghostClass: 'sortable-ghost',
-        onEnd: function (evt) {
-            const itemMovido = bancoDePartes.splice(evt.oldIndex, 1)[0];
-            bancoDePartes.splice(evt.newIndex, 0, itemMovido);
-            atualizarUI();
-        }
-    });
-});
-
-// ================= NAVEGAÇÃO E CONTROLES GERAIS =================
-function toggleMenu() { 
-    dom.sidebar.classList.toggle('fechado'); 
+    --border-color: #cbd5e1;
+    --border-clara: #e2e8f0;
+    --border-fina: #f1f5f9;
+    
+    --cor-primaria: #3b82f6;
+    --cor-primaria-hover: #2563eb;
+    --cor-sucesso: #10b981;
+    --cor-sucesso-hover: #059669;
+    --cor-perigo: #ef4444;
+    --cor-perigo-hover: #dc2626;
+    --cor-alerta: #f59e0b;
+    --cor-info: #0ea5e9;
 }
 
-function mudarPasso(n) {
-    // Salva automaticamente o rascunho da seção se estiver preenchida ao sair do Passo 2
-    if (document.getElementById('passo2').classList.contains('ativo') && n !== 2) {
-        if (dom.editIndex.value !== "-1") {
-            const id = dom.idParte.value.trim();
-            const t = dom.tituloParte.value.trim();
-            const c = dom.conteudoParte.value.trim();
-            const index = parseInt(dom.editIndex.value, 10);
-            
-            if (id && t && c) {
-                const cor = dom.corParte.value;
-                const oldId = bancoDePartes[index].id;
-                bancoDePartes[index] = { id, t, c, cor };
-                mapaAtual.forEach(inst => { 
-                    if(inst.id === oldId) { inst.id = id; inst.t = t; inst.c = c; inst.cor = cor; } 
-                });
-            }
-            
-            dom.idParte.value = ''; dom.tituloParte.value = ''; dom.conteudoParte.value = '';
-            dom.editIndex.value = "-1";
-            dom.btnSalvar.innerText = "+ Salvar Seção";
-            dom.btnSalvar.style.background = "var(--cor-sucesso)";
-            atualizarUI();
-        }
-    }
-
-    document.querySelectorAll('.passo').forEach(p => p.classList.remove('ativo'));
-    document.getElementById('passo' + n).classList.add('ativo');
-    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('ativo'));
-    document.getElementById('link-passo' + n).classList.add('ativo');
-
-    dom.sidebar.classList.add('fechado');
-
-    if(n === 2) atualizarUI();
-    if(n === 3) renderizarTimeline(); 
-    if(n === 4) {
-        const displayTom = document.getElementById('displayTomAtual');
-        if (displayTom) displayTom.innerText = "Tom: " + (dom.inputTom.value || "?");
-        gerarDocumento();
-    }
+/* ================= ESTILOS GERAIS E LAYOUT TRAVADO ================= */
+* { 
+    box-sizing: border-box; 
 }
 
-function iniciarNovaMusica() { 
-    if(confirm("Reiniciar todo o projeto? O progresso não salvo será perdido.")) {
-        handleArquivoAtual = null;
-        location.reload(); 
-    }
+body { 
+    font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+    background: var(--bg-main); 
+    color: var(--text-padrao); 
+    margin: 0; 
+    height: 100vh; 
+    overflow: hidden; 
+    display: flex; 
+	touch-action: manipulation;
 }
 
-// ================= SELETOR DE CORES CUSTOMIZADO =================
-const coresDoApp = [
-    '#8a0000', '#995c00', '#0a5700', '#007070',
-    '#001773', '#66005e', '#968a00', '#4e5e63' 
-];
+/* ================= CLASSES UTILITÁRIAS ================= */
+.mt-3 { margin-top: 12px; }
+.mt-4 { margin-top: 24px; }
+.mb-3 { margin-bottom: 12px; }
+.w-100 { width: 100%; }
+.w-100px { width: 100px; }
 
-const painelCores = document.getElementById('painelCores');
-const btnSeletorCores = document.getElementById('btnSeletorCores');
-const inputOcultoCor = document.getElementById('corParte');
-
-function inicializarGradeCores() {
-    const grade = document.getElementById('gradeCoresPalette');
-    if (!grade) return;
-    grade.innerHTML = ''; 
-
-    coresDoApp.forEach((corHex, index) => {
-        const miniBolinha = document.createElement('button');
-        miniBolinha.type = 'button';
-        miniBolinha.className = 'palette-color-btn';
-        miniBolinha.style.backgroundColor = corHex;
-        miniBolinha.title = `Cor ${index + 1}`;
-        
-        if (corHex === inputOcultoCor.value) miniBolinha.classList.add('selecionada');
-
-        miniBolinha.onclick = (e) => {
-            e.stopPropagation(); 
-            mudarCorEfetiva(corHex);
-            fecharPainelCores();
-        };
-
-        grade.appendChild(miniBolinha);
-    });
+/* ================= SIDEBAR (MENU LATERAL) ================= */
+.sidebar {
+    width: 260px; 
+    background: var(--bg-card); 
+    border-right: 1px solid var(--border-color);
+    display: flex; 
+    flex-direction: column; 
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100; 
+    box-shadow: 4px 0 15px rgba(0,0,0,0.03);
+    flex-shrink: 0;
 }
 
-function togglePainelCores() { 
-    if (painelCores) painelCores.classList.toggle('aberto'); 
+.sidebar.fechado { 
+    margin-left: -260px; 
 }
 
-function fecharPainelCores() { 
-    if (painelCores) painelCores.classList.remove('aberto'); 
+.sidebar-header {
+    padding: 24px 20px; 
+    display: flex; 
+    justify-content: space-between;
+    align-items: center; 
+    border-bottom: 1px solid var(--border-fina);
 }
 
-function mudarCorEfetiva(novaCorHex) {
-    if (btnSeletorCores) btnSeletorCores.style.backgroundColor = novaCorHex;
-    if (inputOcultoCor) inputOcultoCor.value = novaCorHex;
-
-    document.querySelectorAll('.palette-color-btn').forEach(btn => {
-        if (btn.style.backgroundColor === novaCorHex) {
-            btn.classList.add('selecionada');
-        } else {
-            btn.classList.remove('selecionada');
-        }
-    });
+.sidebar-header h3 { 
+    margin: 0; 
+    font-size: 18px; 
+    font-weight: 800; 
+    color: var(--text-escuro); 
+    letter-spacing: -0.5px; 
 }
 
-document.addEventListener('click', function(event) {
-    const container = document.querySelector('.color-picker-container');
-    if (container && !container.contains(event.target)) {
-        fecharPainelCores();
-    }
-});
-
-inicializarGradeCores();
-
-// ================= CARREGAMENTO E SALVAMENTO NATIVO (FILE SYSTEM API) =================
-async function carregarProjeto() {
-    if (window.showOpenFilePicker) {
-        try {
-            const [handle] = await window.showOpenFilePicker({
-                startIn: 'downloads', // Força abertura nativa direto na pasta Downloads
-                types: [{
-                    description: 'Arquivo de Projeto JSON',
-                    accept: { 'application/json': ['.json'] }
-                }],
-                multiple: false
-            });
-            
-            handleArquivoAtual = handle;
-            const file = await handle.getFile();
-            const texto = await file.text();
-            processarConteudoJson(texto);
-        } catch (err) { return; }
-    } else {
-        const fallback = document.getElementById('arquivoProjetoFallback');
-        if (fallback) fallback.click();
-    }
+.btn-fechar-menu {
+    background: transparent; 
+    border: none; 
+    cursor: pointer; 
+    color: var(--text-mutado);
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 4px;
+    border-radius: 6px; 
+    transition: 0.2s;
 }
 
-function carregarProjetoLegado(event) {
-    if (!event.target.files[0]) return;
-    const reader = new FileReader();
-    reader.onload = function() {
-        handleArquivoAtual = null; 
-        processarConteudoJson(reader.result);
-    };
-    reader.readAsText(event.target.files[0]);
+.btn-fechar-menu:hover { 
+    background: var(--border-fina); 
+    color: var(--cor-perigo); 
 }
 
-function processarConteudoJson(jsonString) {
-    try {
-        const p = JSON.parse(jsonString);
-        dom.inputTitulo.value = p.titulo || "";
-        dom.inputAutor.value = p.autor || "";
-        dom.inputTom.value = p.tom || "";
-        dom.inputBpm.value = p.bpm || "";
-        dom.inputCompasso.value = p.compasso || "";
-        bancoDePartes = p.bancoDePartes || [];
-        mapaAtual = p.mapaAtual || [];
-        
-        atualizarUI();
-        renderizarTimeline();
-        mudarPasso(4);
-    } catch (e) { 
-        mostrarToast("Erro ao carregar o arquivo. O JSON é inválido."); 
-    }
+.sidebar-links { 
+    padding: 20px 12px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 6px; 
 }
 
-async function salvarProjeto() {
-    const projeto = {
-        titulo: dom.inputTitulo.value,
-        autor: dom.inputAutor.value,
-        tom: dom.inputTom.value,
-        bpm: dom.inputBpm.value,
-        compasso: dom.inputCompasso.value,
-        bancoDePartes: bancoDePartes,
-        mapaAtual: mapaAtual
-    };
-    const jsonString = JSON.stringify(projeto, null, 2);
+.sidebar-link {
+    padding: 12px 16px; 
+    border: none; 
+    background: transparent; 
+    text-align: left;
+    border-radius: 8px; 
+    font-weight: 600; 
+    font-size: 14px; 
+    color: var(--text-mutado);
+    cursor: pointer; 
+    transition: all 0.2s; 
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+}
 
-    // 1. Sobrescreve direto se já existe vínculo aberto
-    if (handleArquivoAtual && window.showOpenFilePicker) {
-        try {
-            const writable = await handleArquivoAtual.createWritable();
-            await writable.write(jsonString);
-            await writable.close();
-            mostrarToast("Projeto salvo com sucesso!");
-            return;
-        } catch (err) { 
-            console.error("Falha ao sobrescrever, abrindo salvar como nativo...", err); 
-        }
+.sidebar-link:hover { 
+    background: var(--border-fina); 
+    color: var(--text-padrao); 
+}
+
+.sidebar-link.ativo { 
+    background: #eff6ff; 
+    color: var(--cor-primaria); 
+    box-shadow: inset 3px 0 0 var(--cor-primaria); 
+}
+
+/* ================= ÁREA DE CONTEÚDO PRINCIPAL ================= */
+.main-wrapper {
+    flex: 1; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    padding: 20px; 
+    position: relative; 
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); 
+    min-width: 0; 
+}
+
+.btn-menu-flutuante {
+    position: absolute; 
+    top: 20px; 
+    left: 20px; 
+    width: 44px; 
+    height: 44px; 
+    background: var(--bg-card);
+    border: 1px solid var(--border-color); 
+    border-radius: 10px; 
+    cursor: pointer; 
+    display: flex;
+    justify-content: center; 
+    align-items: center; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transition: all 0.2s; 
+    z-index: 90; 
+    color: var(--text-mutado);
+}
+
+.btn-menu-flutuante:hover { 
+    background: #f8fafc; 
+    transform: translateY(-2px); 
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1); 
+}
+
+.container { 
+    width: 100%; 
+    max-width: 1040px; 
+    height: 100%; 
+    max-height: 850px;
+    background: var(--bg-card); 
+    padding: 35px 40px; 
+    border-radius: 16px; 
+    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1); 
+    display: flex; 
+    flex-direction: column;
+}
+
+h2 { 
+    color: var(--text-escuro); 
+    border-bottom: 2px solid var(--border-fina); 
+    padding-bottom: 15px; 
+    margin-top: 0; 
+    font-size: 22px; 
+    font-weight: 700; 
+    letter-spacing: -0.5px; 
+    flex-shrink: 0;
+}
+
+.passo { 
+    display: none; 
+    flex: 1; 
+    min-height: 0; 
+    flex-direction: column;
+    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+}
+
+.passo.ativo { 
+    display: flex; 
+}
+
+@keyframes slideIn { 
+    from { opacity: 0; transform: translateY(10px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
+
+/* ================= COMPONENTES DE UI (BOTÕES E CONTROLES) ================= */
+.btn-nav, .btn-acao, .btn-secundario, .btn-mini { 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    font-weight: 600; 
+    font-family: inherit; 
+    transition: all 0.2s ease; 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 8px;
+}
+
+.btn-nav { 
+    padding: 12px 28px; 
+    font-size: 15px; 
+}
+
+.btn-voltar { 
+    background: var(--text-mutado); 
+    color: white; 
+}
+
+.btn-voltar:hover { 
+    background: #475569; 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 12px rgba(100,116,139,0.2); 
+}
+
+.btn-avancar { 
+    background: var(--cor-primaria); 
+    color: white; 
+    margin-left: auto; 
+}
+
+.btn-avancar:hover { 
+    background: var(--cor-primaria-hover); 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 12px rgba(59,130,246,0.3); 
+}
+
+.btn-pdf { 
+    background: var(--cor-sucesso) !important; 
+}
+
+.btn-pdf:hover { 
+    background: var(--cor-sucesso-hover) !important; 
+    box-shadow: 0 4px 12px rgba(16,185,129,0.3); 
+}
+
+.btn-perigo {
+    background: var(--cor-perigo);
+    color: white;
+    padding: 10px 16px;
+}
+
+.btn-perigo:hover {
+    background: var(--cor-perigo-hover);
+}
+
+.btn-salvar {
+    background: var(--cor-primaria);
+    color: white;
+    padding: 10px 16px;
+}
+
+.btn-imprimir {
+    background: var(--cor-info);
+    color: white;
+    padding: 10px 20px;
+    box-shadow: 0 4px 12px rgba(14,165,233,0.3);
+}
+
+.btn-imprimir:hover {
+    filter: brightness(0.95);
+    transform: translateY(-2px);
+}
+
+.btn-acao { 
+    padding: 12px 20px; 
+    background: var(--cor-sucesso); 
+    color: white; 
+}
+
+.btn-acao:hover { 
+    background: var(--cor-sucesso-hover); 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 12px rgba(16,185,129,0.2); 
+}
+
+.btn-secundario { 
+    background: var(--border-fina); 
+    color: var(--text-mutado); 
+    padding: 10px 16px; 
+    font-size: 13px; 
+    border: 1px solid var(--border-clara); 
+}
+
+.btn-secundario:hover { 
+    background: var(--border-clara); 
+    color: var(--text-padrao); 
+}
+
+.btn-edit { 
+    background: #fef3c7; 
+    color: #d97706; 
+}
+
+.btn-edit:hover { 
+    background: #fde68a; 
+}
+
+.btn-del { 
+    background: #fee2e2; 
+    color: var(--cor-perigo); 
+}
+
+.btn-del:hover { 
+    background: #fecaca; 
+}
+
+.btn-mini { 
+    padding: 6px 10px; 
+    border-radius: 6px; 
+    font-size: 12px; 
+}
+
+.navegacao-passos { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    margin-top: 20px; 
+    padding-top: 20px; 
+    border-top: 1px solid var(--border-fina); 
+    flex-shrink: 0; 
+}
+
+/* ================= FORMULÁRIOS E INPUTS ================= */
+input, textarea { 
+    width: 100%; 
+    padding: 12px 16px; 
+    border: 1.5px solid var(--border-color); 
+    border-radius: 8px; 
+    font-family: inherit; 
+    font-size: 14px; 
+    transition: all 0.2s ease; 
+    background: white; 
+    color: var(--text-padrao);
+}
+
+input:focus, textarea:focus { 
+    outline: none; 
+    border-color: var(--cor-primaria); 
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15); 
+}
+
+.linha-inputs { 
+    display: flex; 
+    gap: 12px; 
+    align-items: center; 
+}
+
+/* ================= PASSO 1 ================= */
+.painel-criacao-central {
+    background: #f8fafc; 
+    padding: 24px; 
+    border-radius: 12px; 
+    border: 1px solid var(--border-clara); 
+    display: flex; 
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex: 1; 
+    min-height: 0;
+}
+
+.form-container {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.input-titulo {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 16px;
+}
+
+/* ================= PASSO 2 ================= */
+.header-secao {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.header-secao h2 {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.header-secao .btn-secundario {
+    margin: 0;
+}
+
+.painel-grid {
+    background: #f8fafc; 
+    padding: 24px; 
+    border-radius: 12px; 
+    border: 1px solid var(--border-clara); 
+    display: flex; 
+    gap: 24px; 
+    flex: 1; 
+    min-height: 0;
+}
+
+.formulario-card {
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    overflow-y: auto; 
+    padding-right: 10px;
+}
+
+.cifra-input { 
+    flex: 1; 
+    min-height: 120px; 
+    font-family: 'Consolas', 'Monaco', monospace; 
+    font-size: 13px; 
+    line-height: 1.5; 
+}
+
+.lista-partes { 
+    flex: 1; 
+    background: white; 
+    border: 1px solid var(--border-clara); 
+    border-radius: 10px; 
+    padding: 16px; 
+    overflow-y: auto; 
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.item-parte { 
+    background: #ffffff; 
+    padding: 12px 16px; 
+    margin-bottom: 10px; 
+    border-radius: 8px; 
+    font-size: 14px; 
+    border: 1px solid var(--border-fina); 
+    border-left: 6px solid var(--border-color); 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+    transition: transform 0.1s ease;
+}
+
+.drag-handle-banco {
+    cursor: grab; 
+    color: var(--border-color); 
+    display: flex; 
+    align-items: center;
+    transition: 0.2s;
+}
+
+.drag-handle-banco:hover { 
+    color: var(--text-mutado) !important; 
+}
+
+.drag-handle-banco:active { 
+    cursor: grabbing !important; 
+}
+
+/* ================= SELETOR DE CORES CUSTOMIZADO ================= */
+.color-picker-container { 
+    position: relative; 
+    width: 46px; 
+    height: 46px; 
+    flex-shrink: 0; 
+}
+
+.color-picker-trigger {
+    width: 46px; 
+    height: 46px; 
+    border-radius: 50%; 
+    border: 2px solid var(--border-color);
+    cursor: pointer; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+    transition: all 0.2s ease;
+    padding: 0; 
+    display: block;
+    background-color: var(--cor-primaria);
+}
+
+.color-picker-trigger:hover { 
+    border-color: var(--cor-primaria); 
+    transform: scale(1.05); 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+}
+
+.color-palette-popover {
+    display: none; 
+    position: absolute; 
+    top: 110%; 
+    right: 0; 
+    background: white;
+    border: 1px solid var(--border-clara); 
+    border-radius: 12px; 
+    padding: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+    z-index: 1000; 
+    width: max-content;
+    animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.color-palette-popover.aberto { 
+    display: block; 
+}
+
+@keyframes popIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.palette-grid { 
+    display: grid; 
+    grid-template-columns: repeat(4, 1fr); 
+    gap: 10px; 
+}
+
+.palette-color-btn { 
+    width: 32px; 
+    height: 32px; 
+    border-radius: 50%; 
+    border: 2px solid var(--border-clara); 
+    cursor: pointer; 
+    transition: all 0.2s; 
+}
+
+.palette-color-btn:hover { 
+    transform: scale(1.15); 
+    border-color: var(--text-claro); 
+}
+
+.palette-color-btn.selecionada { 
+    border-color: var(--text-escuro); 
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1); 
+}
+
+/* ================= PASSO 3 (ARRANJO, MAPA E TIMELINE EM DUAS COLUNAS) ================= */
+.controles-arranjo {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 5px;
+}
+
+.paleta-botoes { 
+    display: flex; 
+    gap: 10px; 
+    flex-wrap: wrap; 
+    padding: 10px 15px; 
+    background: #f8fafc; 
+    border: 1px solid var(--border-clara); 
+    border-radius: 10px; 
+    flex-shrink: 0;
+    flex: 1;
+}
+
+.bolinha { 
+    width: 36px; 
+    height: 36px; 
+    font-size: 12px; 
+    border-width: 2px;
+    border-radius: 50%; 
+    border-style: solid; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    font-weight: 700; 
+    cursor: pointer; 
+    background: white; 
+    transition: all 0.2s ease;
+    color: #000 !important;
+}
+
+.bolinha:hover { 
+    transform: scale(1.1); 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+}
+
+.bolinha-wrapper { 
+    position: relative; 
+    display: inline-block; 
+}
+
+.btn-excluir-preview { 
+    position: absolute; 
+    top: -6px; 
+    left: -6px; 
+    width: 18px; 
+    height: 18px; 
+    background: var(--cor-perigo); 
+    color: white; 
+    border-radius: 50%; 
+    border: none;
+    font-size: 12px; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    cursor: pointer; 
+    opacity: 0; 
+    transition: 0.2s; 
+    font-weight: 900; 
+    z-index: 10;
+    padding: 0; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.bolinha-wrapper:hover .btn-excluir-preview { 
+    opacity: 1; 
+}
+
+.caixa-preview-mapa {
+    background: #ffffff; 
+    border: 1px solid var(--border-color); 
+    border-radius: 10px; 
+    padding: 10px 15px; 
+    margin-bottom: 0; 
+    display: flex; 
+    align-items: center; 
+    min-height: 54px; 
+    flex-shrink: 0; 
+    overflow-x: auto; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    flex: 1;
+    width: 100%;
+}
+
+.preview-label { 
+    font-size: 12px; 
+    font-weight: 700; 
+    color: var(--text-mutado); 
+    margin-right: 15px; 
+    flex-shrink: 0; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+.preview-label span { 
+    font-size: 11px; 
+    font-weight: 400; 
+    color: var(--text-claro); 
+    margin-top: 2px;
+}
+
+.preview-sortable {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.bolinha-preview {
+    width: 28px; 
+    height: 28px; 
+    border-radius: 50%; 
+    border: 2px solid;
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    font-weight: bold; 
+    background: white; 
+    cursor: grab;
+    transition: transform 0.2s; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    color: #000 !important; 
+    font-size: 10px; 
+    border-width: 2px;
+}
+
+.bolinha-preview:active { 
+    cursor: grabbing; 
+    transform: scale(1.05); 
+}
+
+.expoente-repeticao { 
+    position: absolute; 
+    top: -4px; 
+    right: -4px; 
+    font-size: 11px; 
+    font-weight: 900; 
+    color: var(--text-escuro); 
+    z-index: 2;
+    text-shadow: 1.5px 1.5px 0px #fff, -1.5px -1.5px 0px #fff, 1.5px -1.5px 0px #fff, -1.5px 1.5px 0px #fff,
+        0px 1.5px 0px #fff, 0px -1.5px 0px #fff, 1.5px 0px 0px #fff, -1.5px 0px 0px #fff; 
+}
+
+.caixa-timeline { 
+    flex: 1; 
+    min-height: 0; 
+    overflow-y: auto; 
+    background: #f8fafc; 
+    border: 1px solid var(--border-clara); 
+    border-radius: 12px; 
+    padding: 16px; 
+    margin-top: 10px;
+}
+
+/* Otimização visual solicitada: Duas colunas organizadas e espaços priorizados */
+.linha-tempo { 
+    display: grid; 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 16px; 
+    align-items: start;
+}
+
+.item-linha-tempo { 
+    display: flex; 
+    flex-direction: column; 
+    background: #ffffff; 
+    padding: 16px; 
+    border-radius: 12px; 
+    border: 1px solid var(--border-clara); 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+}
+
+.drag-handle { 
+    cursor: grab; 
+    color: var(--border-color); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 5px; 
+    border-radius: 4px; 
+    transition: 0.2s; 
+}
+
+.drag-handle:hover { 
+    color: var(--text-mutado); 
+    background: var(--border-fina); 
+}
+
+.drag-handle:active { 
+    cursor: grabbing; 
+}
+
+.sortable-ghost { 
+    opacity: 0.4; 
+    background: #eff6ff !important; 
+    border: 1px dashed var(--cor-primaria) !important; 
+}
+
+.mini-bolinha { 
+    width: 28px; 
+    height: 28px; 
+    border-radius: 50%; 
+    border: 2.5px solid; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    font-weight: 700; 
+    background: white; 
+    flex-shrink: 0; 
+    color: #000 !important; 
+    font-size: 10px; 
+}
+
+/* Altura e contraste ampliados para total ênfase na digitação */
+.area-comentario {
+    height: 90px;
+    font-size: 15px;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border-color);
+    background: #ffffff;
+    border-radius: 8px;
+    resize: vertical; 
+    color: var(--text-escuro);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.area-comentario:focus {
+    border-color: var(--cor-primaria);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+
+.checkbox-label { 
+    font-size: 13px; 
+    color: var(--text-mutado); 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+}
+
+.checkbox-label input[type="checkbox"] { 
+    width: 16px; 
+    height: 16px; 
+    cursor: pointer; 
+    accent-color: var(--cor-primaria); 
+}
+
+/* ================= PASSO 4 (DOCUMENTO FINAL E PAGINAÇÃO A4) ================= */
+.painel-header-pdf {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 20px; 
+    background: #f8fafc; 
+    padding: 20px; 
+    border-radius: 12px; 
+    border: 1px solid var(--border-clara); 
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.transpositor-container {
+    display: flex; 
+    align-items: center; 
+    background: var(--bg-main); 
+    border-radius: 8px; 
+    padding: 2px; 
+    border: 1px solid var(--border-color);
+}
+
+.transpositor-container .btn-mini {
+    background: white; 
+    color: var(--text-escuro); 
+    font-weight: bold; 
+    padding: 8px 12px; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    border: none;
+}
+
+#displayTomAtual {
+    padding: 0 12px; 
+    font-weight: bold; 
+    font-size: 14px; 
+    color: #334155;
+}
+
+.acoes-finais {
+    display: flex; 
+    gap: 12px; 
+    flex-wrap: wrap;
+}
+
+.folha-preview-area {
+    flex: 1; 
+    min-height: 0; 
+    overflow-y: auto; 
+    background: var(--border-color); 
+    border: 1px solid var(--text-claro);
+    border-radius: 12px; 
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+    padding: 30px; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    gap: 30px;
+}
+
+.pagina-a4 {
+    width: 210mm; 
+    height: 297mm; 
+    background: white; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    display: flex; 
+    flex-direction: column; 
+    flex-shrink: 0; 
+    padding: 6mm; 
+    position: relative;
+}
+
+.pagina-a4-conteudo {
+    column-count: 2; 
+    column-gap: 30px; 
+    column-fill: auto; 
+    flex: 1; 
+    width: 100%; 
+    overflow: hidden; 
+}
+
+.rodape-pagina { 
+    text-align: right; 
+    font-size: 11px; 
+    color: var(--text-claro); 
+    padding-top: 5px; 
+    margin-top: auto; 
+    flex-shrink: 0; 
+    font-weight: 600; 
+}
+
+.cabecalho-musica { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; 
+    border-bottom: 2px solid #eee; 
+    padding-bottom: 10px; 
+    margin: 15px 20px 20px 20px; 
+}
+
+.titulo-musica { 
+    font-size: 24px; 
+    font-weight: 800; 
+    margin: 0; 
+    padding: 0; 
+    display: block; 
+    width: 100%; 
+}
+
+.meta-dados { 
+    display: flex; 
+    gap: 20px; 
+    font-size: 12px; 
+    color: #666; 
+    font-weight: bold; 
+}
+
+.meta-dados span { 
+    color: #000; 
+    font-weight: normal; 
+    margin-left: 4px; 
+}
+
+.mapa-impresso { 
+    display: flex; 
+    gap: 12px; 
+    flex-wrap: wrap; 
+    margin: 0 15px 20px 20px; 
+}
+
+.bolinha-impressa { 
+    width: 22px; 
+    height: 22px; 
+    border-radius: 50%; 
+    border: 2px solid; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    font-weight: bold; 
+    background: white; 
+    color: #000 !important; 
+    font-size: 10px; 
+    z-index: 1; 
+    position: relative; 
+}
+
+.secao { 
+    position: relative; 
+    display: inline-block; 
+    width: 100%; 
+    border: 2px solid #e0e0e0; 
+    border-radius: 12px; 
+    padding: 16px 15px 8px 15px; /* Medida exata igualada com a impressão para evitar quebras ocultas */
+    margin-top: 16px; 
+    margin-bottom: 8px; 
+    background: white; 
+    break-inside: avoid; 
+    page-break-inside: avoid;
+}
+
+.cabecalho-balao { 
+    display: block; 
+    width: 100%; 
+}
+
+.linha-musica { 
+    display: flex; 
+    flex-wrap: wrap; 
+    margin-bottom: 8px; 
+    break-inside: avoid; 
+    page-break-inside: avoid; 
+} 
+
+.titulo-secao { 
+    position: absolute; 
+    top: -14px; 
+    left: 12px; 
+    font-weight: bold; 
+    background: white; 
+    padding: 0 10px 0 5px; 
+    font-size: 14px; 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 8px; 
+    white-space: nowrap; 
+}
+
+.titulo-secao .mini-bolinha { 
+    width: 22px; 
+    height: 22px; 
+    font-size: 9px; 
+}
+
+.comentario-container { 
+    display: block; 
+    width: 100%; 
+    padding-top: 0; 
+    text-align: right; 
+    margin-bottom: 2px; 
+}
+
+.comentario-pdf { 
+    color: #666; 
+    font-size: 13px; 
+    font-style: normal; 
+    white-space: pre-wrap; 
+    word-break: break-word; 
+    line-height: 1.3; 
+    text-align: right;
+}
+
+.secao-conteudo { 
+    padding-top: 5px; 
+    padding-bottom: 6px; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+.bloco-acorde { 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: flex-end; 
+}
+
+/* 1. Distância mínima forçada para cifras COM LETRA */
+.acorde { 
+    font-weight: bold; 
+    font-size: 13px; 
+    color: #000; 
+    line-height: 1; 
+    margin-bottom: 2px; 
+    margin-right: 5px; 
+}
+
+.letra { 
+    font-size: 13px; 
+    color: #333; 
+    white-space: pre; 
+    line-height: 1.1; 
+}
+
+.so-cifra .letra { 
+    display: none; 
+}
+
+/* 2. Distância independente ampliada para SOMENTE ACORDES */
+.so-cifra .acorde { 
+    margin-right: 5px; 
+}
+
+.so-cifra .bloco-acorde { 
+    margin-right: 0px; 
+}
+
+.secao-conteudo.so-cifra { 
+    padding-top: 6px; 
+    padding-bottom: 0px; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+/* ================= MODAIS OVERLAY ================= */
+.modal-overlay { 
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(15, 23, 42, 0.75); 
+    backdrop-filter: blur(4px); 
+    z-index: 1000; 
+    justify-content: center; 
+    align-items: center; 
+}
+
+.modal-content { 
+    background: white; 
+    padding: 32px; 
+    border-radius: 16px; 
+    width: 90%; 
+    max-width: 800px; 
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: var(--text-escuro);
+}
+
+.modal-content p {
+    color: var(--text-mutado);
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+#textoCifraCru {
+    height: 350px; 
+    font-family: 'Consolas', monospace; 
+    margin-bottom: 20px; 
+    background: #f8fafc;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* ================= REGRAS DE IMPRESSÃO NATIVAS ================= */
+@media print {
+    .no-print { 
+        display: none !important; 
     }
     
-    // 2. Salvar como nativo direcionando para Downloads
-    if (window.showSaveFilePicker) {
-        try {
-            const handle = await window.showSaveFilePicker({
-                startIn: 'downloads', // Força sugestão nativa na pasta Downloads
-                suggestedName: (projeto.titulo || "cifras") + ".json",
-                types: [{
-                    description: 'Arquivo de Projeto JSON',
-                    accept: { 'application/json': ['.json'] }
-                }]
-            });
-            const writable = await handle.createWritable();
-            await writable.write(jsonString);
-            await writable.close();
-            
-            handleArquivoAtual = handle; 
-            mostrarToast("Projeto salvo com sucesso!");
-            return;
-        } catch (err) { return; }
-    }
-
-    // 3. Fallback de download via Blob para navegadores sem suporte
-    const blob = new Blob([jsonString], {type: "application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; 
-    a.download = (projeto.titulo || "cifras") + ".json";
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-// ================= LÓGICA DE TRANSPOSIÇÃO DE TOM =================
-const ESCALA_SUSTENIDOS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const ESCALA_BEMOIS     = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-
-function transporNota(nota, semitons) {
-    let index = ESCALA_SUSTENIDOS.indexOf(nota);
-    let usaBemol = false;
-
-    if (index === -1) {
-        index = ESCALA_BEMOIS.indexOf(nota);
-        usaBemol = true;
-    }
-
-    if (index === -1) return nota; 
-
-    let novoIndex = (index + semitons) % 12;
-    if (novoIndex < 0) novoIndex += 12;
-
-    return usaBemol ? ESCALA_BEMOIS[novoIndex] : ESCALA_SUSTENIDOS[novoIndex];
-}
-
-function transporAcorde(acordeCompleto, semitons) {
-    // Separa de forma inteligente: Tónica, Tensões e Baixo Invertido
-    const regexSeparador = /^([A-G][b#]?)(.*?)(\/([A-G][b#]?))?$/;
-    const match = acordeCompleto.match(regexSeparador);
-
-    if (!match) return acordeCompleto;
-
-    const notaFundamental = match[1];
-    const extensao        = match[2] || "";
-    const temBaixo        = match[3] ? true : false;
-    const notaBaixo       = match[4] || "";
-
-    let novoAcorde = transporNota(notaFundamental, semitons) + extensao;
-
-    if (temBaixo && notaBaixo) {
-        novoAcorde += "/" + transporNota(notaBaixo, semitons);
-    }
-
-    return novoAcorde;
-}
-
-function transporMusica(semitons) {
-    let tomAtual = dom.inputTom.value.trim();
-    if (tomAtual) {
-        let matchTom = tomAtual.match(/^([A-G][b#]?)(.*)$/);
-        if (matchTom) {
-            dom.inputTom.value = transporNota(matchTom[1], semitons) + matchTom[2];
-        }
-    }
-
-    const displayTom = document.getElementById('displayTomAtual');
-    if (displayTom) displayTom.innerText = "Tom: " + (dom.inputTom.value || "?");
-
-    const regexBuscaColchetes = /\[(.*?)\]/g;
-
-    bancoDePartes.forEach(parte => {
-        parte.c = parte.c.replace(regexBuscaColchetes, (matchTotal, conteudoAcorde) => {
-            return "[" + transporAcorde(conteudoAcorde.trim(), semitons) + "]";
-        });
-    });
-
-    mapaAtual.forEach(inst => {
-        inst.c = inst.c.replace(regexBuscaColchetes, (matchTotal, conteudoAcorde) => {
-            return "[" + transporAcorde(conteudoAcorde.trim(), semitons) + "]";
-        });
-    });
-
-    gerarDocumento();
-}
-
-// ================= CONVERSOR DE CIFRAS E GESTÃO DE PARTES =================
-function abrirConversor() { 
-    if (dom.modal) dom.modal.style.display = 'flex'; 
-}
-
-function fecharConversor() { 
-    if (dom.modal) dom.modal.style.display = 'none'; 
-    if (dom.textoConversor) dom.textoConversor.value = ""; 
-}
-
-function processarConversao() {
-    const textoCru = dom.textoConversor.value;
-    if (!textoCru.trim()) return fecharConversor(); 
-
-    const linhas = textoCru.split('\n');
-    let resultado = "";
-    
-    for (let i = 0; i < linhas.length; i++) {
-        let lAtual = linhas[i]; 
-        let lProx = linhas[i + 1] || "";
-        const matches = lAtual.match(regexAcordeGlobal);
-        
-        if (matches && lAtual.replace(regexAcordeGlobal, '').trim().length < lAtual.length / 2) {
-            let linhaFundida = ""; let cursor = 0; let acordes = []; let m;
-            regexAcordeGlobal.lastIndex = 0;
-            while ((m = regexAcordeGlobal.exec(lAtual)) !== null) {
-                acordes.push({ nota: m[0], pos: m.index });
-            }
-            
-            acordes.forEach(acc => { 
-                linhaFundida += lProx.substring(cursor, acc.pos) + "[" + acc.nota + "]"; 
-                cursor = acc.pos; 
-            });
-            linhaFundida += lProx.substring(cursor);
-            resultado += linhaFundida + "\n"; 
-            i++; 
-        } else { 
-            resultado += lAtual + "\n"; 
-        }
-    }
-    dom.conteudoParte.value = resultado.trim();
-    fecharConversor();
-}
-
-function adicionarNovaParte() {
-    const id = dom.idParte.value.trim();
-    const t = dom.tituloParte.value.trim();
-    const c = dom.conteudoParte.value.trim();
-    const cor = dom.corParte.value;
-    const index = parseInt(dom.editIndex.value, 10);
-    
-    if (!id || !t || !c) return mostrarToast("Preencha todos os campos da seção!");
-    
-    if(index === -1) {
-        bancoDePartes.push({ id, t, c, cor });
-    } else {
-        const oldId = bancoDePartes[index].id;
-        bancoDePartes[index] = { id, t, c, cor };
-        mapaAtual.forEach(inst => { 
-            if(inst.id === oldId) { inst.id = id; inst.t = t; inst.c = c; inst.cor = cor; } 
-        });
-        dom.editIndex.value = "-1";
-        dom.btnSalvar.innerText = "+ Salvar Seção";
-        dom.btnSalvar.style.background = "var(--cor-sucesso)";
+    body { 
+        background: white !important; 
+        height: auto !important; 
+        overflow: visible !important; 
     }
     
-    dom.idParte.value = ''; dom.tituloParte.value = ''; dom.conteudoParte.value = '';
-    atualizarUI();
-}
-
-function editarParte(index) {
-    const p = bancoDePartes[index];
-    dom.idParte.value = p.id;
-    dom.tituloParte.value = p.t;
-    dom.conteudoParte.value = p.c;
-    dom.corParte.value = p.cor;
-    dom.editIndex.value = index;
-    dom.btnSalvar.innerText = "Atualizar Seção";
-    dom.btnSalvar.style.background = "var(--cor-alerta)"; 
-}
-
-function excluirParte(index) {
-    if(confirm("Excluir seção? Isso removerá a parte da estrutura da música também.")) {
-        const idRemovido = bancoDePartes[index].id;
-        bancoDePartes.splice(index, 1);
-        mapaAtual = mapaAtual.filter(inst => inst.id !== idRemovido);
-        atualizarUI();
+    .main-wrapper, .container, .passo { 
+        background: transparent !important; 
+        box-shadow: none !important; 
+        padding: 0 !important; 
+        margin: 0 !important; 
+        width: 100% !important; 
+        max-width: none !important; 
     }
 }
 
-function atualizarUI() {
-    if(bancoDePartes.length === 0) {
-        dom.listaPartes.innerHTML = `<div style="color: var(--text-claro); text-align: center; margin-top: 50px; font-size: 14px;">Nenhuma seção criada ainda.</div>`;
-        dom.paleta.innerHTML = '';
-        return;
-    }
-
-    let htmlLista = ''; 
-    let htmlPaleta = '';
+/* ================= MODO ESCURO (DARK MODE) - CORREÇÃO DEFINITIVA ================= */
+body.dark {
+    --bg-main: #0f172a;
+    --bg-card: #1e293b;
+    --text-escuro: #f8fafc;
+    --text-padrao: #e2e8f0;
+    --text-mutado: #94a3b8;
+    --text-claro: #64748b;
     
-    bancoDePartes.forEach((parte, i) => {
-        // Inclui o drag-handle-banco para reordenação com ícone indicativo
-        htmlLista += `
-            <div class="item-parte" style="border-left-color:${parte.cor}; display:flex; align-items:center; gap:12px;">
-                <div class="drag-handle-banco" title="Arraste para reordenar">
-                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"></path></svg>
-                </div>
-                <span style="flex:1;"><strong style="color:var(--text-mutado);">(${parte.id})</strong> ${parte.t}</span>
-                <div style="display:flex; gap:6px;">
-                    <button class="btn-mini btn-edit" onclick="editarParte(${i})">✎</button>
-                    <button class="btn-mini btn-del" onclick="excluirParte(${i})">✖</button>
-                </div>
-            </div>`;
-            
-        htmlPaleta += `<div class="bolinha" style="border-color:${parte.cor};" onclick="adicionarAoMapa(${i})" title="Adicionar ${parte.t}">${parte.id}</div>`;
-    });
+    --border-color: #334155;
+    --border-clara: #475569;
+    --border-fina: #1e293b;
     
-    dom.listaPartes.innerHTML = htmlLista;
-    dom.paleta.innerHTML = htmlPaleta;
+    color-scheme: dark; 
 }
 
-function adicionarAoMapa(indexBanco) {
-    const parte = bancoDePartes[indexBanco];
-    mapaAtual.push({ ...parte, com: '', mesclar: false, ocultar: false });
-    renderizarTimeline();
+body.dark .main-wrapper {
+    background: var(--bg-main) !important;
+}
+
+body.dark .sidebar-link.ativo {
+    background: #2d3748 !important;
+    color: var(--cor-primaria) !important;
+    box-shadow: inset 4px 0 0 var(--cor-primaria) !important;
+}
+
+body.dark .painel-criacao-central,
+body.dark .painel-grid,
+body.dark .paleta-botoes,
+body.dark .caixa-preview-mapa,
+body.dark .caixa-timeline,
+body.dark .painel-header-pdf,
+body.dark .transpositor-container {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark input,
+body.dark textarea,
+body.dark .cifra-input,
+body.dark .area-comentario,
+body.dark #textoCifraCru {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+body.dark input::placeholder,
+body.dark textarea::placeholder {
+    color: #64748b !important;
+}
+
+/* 1. CORREÇÃO DAS SEÇÕES CRIADAS (Preserva a barra colorida à esquerda) */
+body.dark .item-parte {
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-top-color: #334155 !important;
+    border-right-color: #334155 !important;
+    border-bottom-color: #334155 !important;
+    /* border-left-color não é alterado para manter a cor original da seção */
+}
+
+body.dark .item-linha-tempo {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+/* 2. CORREÇÃO DAS BOLINHAS (Preserva as cores originais das bordas) */
+body.dark .bolinha,
+body.dark .bolinha-preview,
+body.dark .item-linha-tempo .mini-bolinha {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    /* Removido o border-color !important para exibir a cor definida inline */
+}
+
+/* 3. CORREÇÃO DOS NÚMEROS DE REPETIÇÃO NA INTERFACE (Sem fundo azul) */
+body.dark .caixa-preview-mapa .expoente-repeticao {
+    color: #ffffff !important;
+    background: transparent !important;
+    text-shadow: 1.5px 1.5px 0px #1e293b, -1.5px -1.5px 0px #1e293b, 1.5px -1.5px 0px #1e293b, -1.5px 1.5px 0px #1e293b, 0px 1.5px 0px #1e293b, 0px -1.5px 0px #1e293b, 1.5px 0px 0px #1e293b, -1.5px 0px 0px #1e293b !important;
+    padding: 0 !important;
+}
+
+body.dark .transpositor-container .btn-mini {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    border-color: #334155 !important;
+}
+body.dark #displayTomAtual {
+    color: #f8fafc !important;
+}
+
+body.dark .lista-partes,
+body.dark .modal-content,
+body.dark .color-palette-popover {
+    background: #1e293b !important;
+    border-color: #475569 !important;
+}
+
+body.dark ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+body.dark ::-webkit-scrollbar-track {
+    background: #0f172a !important;
+}
+body.dark ::-webkit-scrollbar-thumb {
+    background: #334155 !important;
+    border-radius: 5px;
+}
+body.dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569 !important;
+}
+
+/* 4. CORRIGINDO OS BOTÕES DE EDITAR E EXCLUIR NO MODO ESCURO */
+body.dark .btn-edit {
+    background: #2d2605 !important; /* Âmbar muito escuro */
+    color: #fbbf24 !important;
+    border: 1px solid #92400e !important;
+}
+
+body.dark .btn-del {
+    background: #2d0a0a !important; /* Vermelho muito escuro */
+    color: #f87171 !important;
+    border: 1px solid #991b1b !important;
+}
+
+/* Ajuste adicional para os ícones dentro desses botões se necessário */
+body.dark .btn-mini:hover {
+    filter: brightness(1.2);
+}
+
+/* ================= ISOLAMENTO TOTAL DO DOCUMENTO FINAL (PDF SEMPRE BRANCO E ORIGINAL) ================= */
+body.dark .pagina-a4 {
+    background: white !important;
+    color: black !important;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5) !important;
+}
+body.dark .pagina-a4 * {
+    color: black !important;
+}
+body.dark .pagina-a4 .titulo-musica {
+    color: #000000 !important;
+}
+body.dark .pagina-a4 .meta-dados, 
+body.dark .pagina-a4 .meta-dados span,
+body.dark .pagina-a4 .comentario-pdf {
+    color: #444444 !important;
+}
+body.dark .pagina-a4 .secao {
+    background: white !important;
+    border-color: #e0e0e0 !important;
+}
+body.dark .pagina-a4 .titulo-secao {
+    background: white !important;
+    color: black !important;
+}
+body.dark .pagina-a4 .bolinha-impressa,
+body.dark .pagina-a4 .mini-bolinha {
+    background: white !important;
+    color: black !important;
+}
+body.dark .pagina-a4 .acorde {
+    color: #000000 !important;
+}
+
+/* 4. GARANTIA DE QUE O EXPOENTE IMPRESSO NO PDF NUNCA SEJA MODIFICADO */
+body.dark .pagina-a4 .expoente-repeticao {
+    color: #000000 !important;
+    background: transparent !important;
+    text-shadow: 1.5px 1.5px 0px #fff, -1.5px -1.5px 0px #fff, 1.5px -1.5px 0px #fff, -1.5px 1.5px 0px #fff, 0px 1.5px 0px #fff, 0px -1.5px 0px #fff, 1.5px 0px 0px #fff, -1.5px 0px 0px #fff !important;
+    padding: 0 !important;
+}
+
+/* ================= NOTIFICAÇÕES TOAST (FIM DOS ALERTAS) ================= */
+.toast-notificacao {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--text-escuro);
+    color: var(--bg-card);
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    z-index: 2000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+}
+
+.toast-notificacao.mostrar {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ================= RESPONSIVIDADE (MOBILE / TABLET) ================= */
+@media (max-width: 768px) {
+body {
+    height: 100dvh;
+    overflow-y: hidden;
+}
     
-    const caixaTimeline = document.querySelector('.caixa-timeline');
-    if (caixaTimeline) {
-        setTimeout(() => { caixaTimeline.scrollTop = caixaTimeline.scrollHeight; }, 50);
-    }
+.main-wrapper {
+    padding: 10px;
+	height: 100dvh;
+	displey: flex;
+	flex-direction: column;
+    overflow: hidden;
 }
-
-window.excluirGrupoDoMapa = function(startIdx, count) {
-    mapaAtual.splice(startIdx, count);
-    renderizarTimeline();
-};
-
-function renderizarTimeline() {
-    mapGroupsGlobais = [];
-    let currentGroup = [];
-    mapaAtual.forEach(inst => {
-        if (currentGroup.length > 0 && currentGroup[currentGroup.length-1].id === inst.id) {
-            currentGroup.push(inst);
-        } else { 
-            if (currentGroup.length > 0) mapGroupsGlobais.push(currentGroup);
-            currentGroup = [inst];
-        }
-    });
-    if (currentGroup.length > 0) mapGroupsGlobais.push(currentGroup);
-
-    if (mapGroupsGlobais.length === 0) {
-        dom.previewMapa.innerHTML = `<span class="nao-arrastavel" style="color:var(--text-claro); font-size:13px; margin:auto;">A estrutura da música aparecerá aqui.</span>`;
-    } else {
-        let htmlPreview = ''; 
-        let countStart = 0; 
-        
-        mapGroupsGlobais.forEach((grupo, idx) => {
-            const item = grupo[0]; 
-            const count = grupo.length;
-            htmlPreview += `
-                <div class="bolinha-wrapper" data-group-index="${idx}">
-                    <button class="btn-excluir-preview" onclick="excluirGrupoDoMapa(${countStart}, ${count})" title="Excluir grupo do mapa">×</button>
-                    <div class="bolinha-preview" style="border-color:${item.cor};" title="Arraste para mover o grupo inteiro">
-                        ${item.id}
-                    </div>
-                    ${count > 1 ? `<div class="expoente-repeticao">${count}</div>`:''}
-                </div>`;
-            countStart += count;
-        });
-        dom.previewMapa.innerHTML = htmlPreview;
-    }
-
-    let htmlTimeline = '';
-    mapaAtual.forEach((inst, i) => {
-        const isRep = i > 0 && mapaAtual[i-1].id === inst.id;
-        htmlTimeline += `
-            <div class="item-linha-tempo">
-                <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-                    <div class="drag-handle" title="Arraste para reordenar">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"></path></svg>
-                    </div>
-                    <div class="mini-bolinha" style="border-color:${inst.cor};">${inst.id}</div>
-                    <strong style="color:var(--text-padrao);">${inst.t}</strong>
-                    <button onclick="mapaAtual.splice(${i},1); renderizarTimeline()" style="margin-left:auto; cursor:pointer; color:var(--cor-perigo); border:none; background:none; font-weight:bold; font-size:16px;">×</button>
-                </div>
-                <textarea class="area-comentario" placeholder="Dinâmica / Comentários (ex: Todos juntos, Bateria forte...)" oninput="mapaAtual[${i}].com = this.value">${inst.com || ''}</textarea>
-                
-                <div style="display:flex; gap:20px; margin-top:12px; flex-wrap: wrap;">
-                    ${isRep ? `<label class="checkbox-label"><input type="checkbox" onchange="mapaAtual[${i}].mesclar = this.checked; renderizarTimeline()" ${inst.mesclar ? 'checked' : ''}> Mesclar repetição no mesmo balão</label>` : ''}
-                    <label class="checkbox-label" style="${inst.mesclar ? 'opacity:0.4; pointer-events:none;' : ''}"><input type="checkbox" onchange="mapaAtual[${i}].ocultar = this.checked" ${inst.ocultar ? 'checked' : ''}> Ocultar balão na impressão</label>
-                </div>
-            </div>
-        `;
-    });
-    dom.linhaTempo.innerHTML = htmlTimeline;
-}
-
-function compilarCifra(texto) {
-    if (!texto) return ''; 
-    let htmlCompilado = '';
-    texto.split('\n').forEach(linha => {
-        if(!linha.trim()){ 
-            htmlCompilado += "<div style='height:0.8em;'></div>"; 
-            return; 
-        }
-        
-        htmlCompilado += "<div class='linha-musica'>";
-        let partes = linha.split(/(\[[^\]]+\])/);
-        let acordeAtual = "";
-        
-        partes.forEach(p => {
-            if (p.startsWith('[') && p.endsWith(']')) {
-                acordeAtual = p.slice(1,-1);
-            } else if (p) {
-                htmlCompilado += `<div class='bloco-acorde'><span class='acorde'>${acordeAtual}</span><span class='letra'>${p}</span></div>`;
-                acordeAtual = "";
-            }
-        });
-        if (acordeAtual) {
-            htmlCompilado += `<div class='bloco-acorde'><span class='acorde'>${acordeAtual}</span><span class='letra'>&nbsp;</span></div>`;
-        }
-        
-        htmlCompilado += "</div>";
-    });
-    return htmlCompilado;
-}
-
-// ================= GERAÇÃO DO DOCUMENTO A4 E IMPRESSÃO =================
-function gerarHtmlHeader() {
-    let displayMap = [];
-    mapaAtual.forEach(inst => {
-        if (displayMap.length > 0 && displayMap[displayMap.length-1].id === inst.id) {
-            displayMap[displayMap.length-1].count++;
-        } else { 
-            displayMap.push({ ...inst, count: 1 }); 
-        }
-    });
     
-    let htmlMapa = '';
-    displayMap.forEach(item => {
-        htmlMapa += `
-            <div class="bolinha-wrapper">
-                <div class="bolinha-impressa" style="border-color:${item.cor};">${item.id}</div>
-                ${item.count > 1 ? `<div class="expoente-repeticao">${item.count}</div>`:''}
-            </div>`;
-    });
-
-    return `
-        <div class="cabecalho-musica">
-            <div style="flex: 1; min-width: 0; padding-right: 0px;">
-                <h1 class="titulo-musica">${dom.inputTitulo.value}</h1>
-                <p style="color:#888; margin:0;">${dom.inputAutor.value}</p>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0;">
-                <div class="meta-dados">
-                    <div>Tom: <span>${dom.inputTom.value}</span></div>
-                    <div>Andamento: <span>${dom.inputBpm.value}</span></div>
-                    <div>Compasso: <span>${dom.inputCompasso.value}</span></div>
-                </div>
-            </div>
-        </div>
-        <div class="mapa-impresso">${htmlMapa}</div>
-    `;
+.container {
+    flex: 1;
+	height: 100%;
+    padding: 12px;
+	display: flex;
+	flex-direction: column;
+	overflow-y: auto;
 }
 
-function criarPaginaA4(isFirst, pageNum) {
-    const page = document.createElement('div');
-    page.className = 'pagina-a4';
+.linha-inputs, 
+.form-container, 
+.painel-grid, 
+.controles-arranjo {
+    flex-direction: column;
+}
     
-    let headerHtml = isFirst ? gerarHtmlHeader() : '';
-
-    page.innerHTML = `
-        ${headerHtml}
-        <div class="pagina-a4-conteudo"></div>
-        <div class="rodape-pagina" data-page="${pageNum}"></div>
-    `;
-    
-    dom.docContainer.appendChild(page);
-    return page;
+.linha-tempo {
+    display: flex; /* Transforma as 2 colunas em lista vertical na tela pequena */
+    flex-direction: column;
 }
 
-function gerarDocumento() {
-    dom.docContainer.innerHTML = ''; 
+.w-100px { width: 100%; }
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    box-shadow: 10px 0 25px rgba(0,0,0,0.5);
+}
     
-    let baloes = [];
-    mapaAtual.forEach(inst => {
-        if (inst.ocultar) return; 
-        if (baloes.length > 0 && baloes[baloes.length-1].id === inst.id && inst.mesclar) {
-            baloes[baloes.length-1].count++;
-            if (inst.com) baloes[baloes.length-1].coms.push(inst.com);
-        } else { 
-            baloes.push({ ...inst, count: 1, coms: inst.com ? [inst.com] : [] }); 
-        }
-    });
+.painel-header-pdf {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
     
-    let pageNum = 1;
-    let currentPage = criarPaginaA4(true, pageNum);
-    let contentEl = currentPage.querySelector('.pagina-a4-conteudo');
-
-    baloes.forEach(b => {
-        const strComentarios = b.coms.join('<br>');
-        const comHtml = strComentarios ? `<div class="comentario-container"><div class="comentario-pdf">${strComentarios}</div></div>` : '';
-        const repHtml = b.count > 1 ? `(${b.count}X)` : '';
-        const textoSemAcordes = b.c.replace(/\[.*?\]/g, '').trim();
-        const classSoCifra = textoSemAcordes.length > 0 ? '' : 'so-cifra';
-
-        const divBalao = document.createElement('div');
-        divBalao.className = `secao`;
-        divBalao.innerHTML = `
-            <div class="cabecalho-balao">
-                <div class="titulo-secao">
-                    <div class="mini-bolinha" style="border-color:${b.cor}; color:#000 !important;">${b.id}</div>
-                    ${b.t} ${repHtml}
-                </div>
-                ${comHtml}
-            </div>
-            <div class="secao-conteudo ${classSoCifra}">
-                ${compilarCifra(b.c)}
-            </div>
-        `;
-        
-        contentEl.appendChild(divBalao);
-
-        // Verifica transbordo dinâmico para garantir que tudo caiba na folha
-        const excedeuLimite = contentEl.scrollWidth > contentEl.clientWidth + 5;
-        
-        if (excedeuLimite && contentEl.children.length > 1) {
-            contentEl.removeChild(divBalao);
-            pageNum++;
-            currentPage = criarPaginaA4(false, pageNum);
-            contentEl = currentPage.querySelector('.pagina-a4-conteudo');
-            contentEl.appendChild(divBalao);
-        }
-    });
-
-    document.querySelectorAll('.rodape-pagina').forEach(f => {
-        const p = f.getAttribute('data-page');
-        f.innerText = `Página ${p} de ${pageNum}`;
-    });
+.acoes-finais {
+    justify-content: space-between;
 }
 
-function imprimirA4() {
-    const conteudoFormatado = dom.docContainer.innerHTML;
-
-    let iframe = document.getElementById('iframe-impressao');
-    if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'iframe-impressao';
-        iframe.style.position = 'absolute';
-        iframe.style.width = '0px'; 
-        iframe.style.height = '0px'; 
-        iframe.style.border = 'none';
-        document.body.appendChild(iframe);
-    }
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    // Injeta a estrutura exata do estilo de impressão para o iframe nativo
-    doc.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Cifra A4</title>
-            <style>
-                @page { size: A4; margin: 0; }
-                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
-                body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0; background: white; color: black; }
-
-                .pagina-a4 {
-                    width: 210mm; height: 297mm; padding: 6mm; margin: 0; box-shadow: none;
-                    display: flex; flex-direction: column; position: relative; overflow: hidden;
-                    page-break-after: always; break-after: page;
-                }
-                .pagina-a4:last-child { page-break-after: auto; break-after: auto; }
-
-                .pagina-a4-conteudo { column-count: 2; column-gap: 30px; column-fill: auto; flex: 1; width: 100%; overflow: hidden; }
-
-                .rodape-pagina { text-align: right; font-size: 11px; color: #94a3b8; padding-top: 10px; margin-top: auto; flex-shrink: 0; font-weight: 600; }
-
-                .cabecalho-musica { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #eee; padding-bottom: 10px; margin: 15px 20px 20px 20px; }
-                .titulo-musica { font-size: 24px; font-weight: 800; margin: 0; }
-                .meta-dados { display: flex; gap: 20px; font-size: 12px; color: #666; font-weight: bold; }
-                .meta-dados span { color: #000; font-weight: normal; margin-left: 4px; }
-                .mapa-impresso { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 15px 20px 20px; }
-                .bolinha-wrapper { position: relative; display: inline-block; }
-                .bolinha-impressa { width: 22px; height: 22px; border-radius: 50%; border: 2px solid; display: flex; justify-content: center; align-items: center; font-weight: bold; background: white; color: #000 !important; font-size: 10px; z-index: 1; position: relative; }
-                .expoente-repeticao { position: absolute; top: -5px; right: -5px; font-size: 11px; font-weight: 900; color: #000; z-index: 2; background: white; border-radius: 50%; padding: 0 2px; }
-
-                .secao { 
-                    position: relative; display: inline-block; width: 100%; border: 2px solid #e0e0e0; 
-                    border-radius: 12px; padding: 16px 15px 8px 15px; margin-top: 16px; margin-bottom: 8px; 
-                    background: white; break-inside: avoid; page-break-inside: avoid;
-                }
-                
-                .cabecalho-balao { display: block; width: 100%; }
-                .linha-musica { display: flex; flex-wrap: wrap; margin-bottom: 8px; break-inside: avoid; page-break-inside: avoid; } 
-
-                .titulo-secao { position: absolute; top: -14px; left: 12px; font-weight: bold; background: white; padding: 0 10px 0 5px; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
-                .mini-bolinha { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid; display: flex; justify-content: center; align-items: center; font-weight: 700; background: white; color: #000 !important; font-size: 9px; }
-                
-                .comentario-container { display: block; width: 100%; padding-top: 0; text-align: right; margin-bottom: 2px; }
-                .comentario-pdf { color: #666; font-size: 13px; font-style: normal; white-space: pre-wrap; word-break: break-word; line-height: 1.3; text-align: right; }
-
-                .secao-conteudo { padding-top: 5px; padding-bottom: 6px; display: flex; flex-direction: column; }
-                .bloco-acorde { display: flex; flex-direction: column; justify-content: flex-end; }
-                .acorde { font-weight: bold; font-size: 13px; color: #000; line-height: 1; margin-bottom: 2px; margin-right: 5px; }
-                .letra { font-size: 13px; color: #333; white-space: pre; line-height: 1.1; }
-                .so-cifra .letra { display: none; }
-                .so-cifra .acorde { margin-right: 6px; }
-                .so-cifra .bloco-acorde { margin-right: 0px; }
-                .secao-conteudo.so-cifra { padding-top: 6px; padding-bottom: 0px; display: flex; flex-direction: column; }
-            </style>
-        </head>
-        <body>
-            ${conteudoFormatado}
-        </body>
-        </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-    }, 250);
-}
-// ================= SISTEMA DE TOAST E TEMA ESCURO =================
-function mostrarToast(mensagem) {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.innerText = mensagem;
-    toast.classList.add('mostrar');
-    setTimeout(() => {
-        toast.classList.remove('mostrar');
-    }, 3000);
+.btn-nav, 
+.btn-acao, 
+.btn-secundario, 
+.btn-perigo, 
+.btn-salvar, 
+.btn-imprimir {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    gap: 4px !important;
 }
 
-function toggleDarkMode() {
-    document.body.classList.toggle('dark');
-    const isDark = document.body.classList.contains('dark');
-    localStorage.setItem('temaCifrasStudio', isDark ? 'escuro' : 'claro');
+.navegacao-passos {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 12px;
+    margin-top: 12px;
 }
-// ================= GESTOS MOBILE (SWIPE PARA MENU) =================
-let toqueInicialX = 0;
-let toqueInicialY = 0;
 
-document.addEventListener('touchstart', function(e) {
-    toqueInicialX = e.changedTouches[0].screenX;
-    toqueInicialY = e.changedTouches[0].screenY;
-}, { passive: true });
+.navegacao-passos .btn-nav {
+    flex: 1;
+    min-width: 130px;
+    text-align: center;
+    justify-content: center;
+}
 
-document.addEventListener('touchend', function(e) {
-    const toqueFinalX = e.changedTouches[0].screenX;
-    const toqueFinalY = e.changedTouches[0].screenY;
+.painel-header-pdf {
+    padding: 12px;
+    gap: 12px;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.acoes-finais {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+}
+
+.acoes-finais .btn-nav {
+    width: 100%;
+    margin: 0;
+}
     
-    const distanciaX = toqueFinalX - toqueInicialX;
-    const distanciaY = Math.abs(toqueFinalY - toqueInicialY);
-    
-    // Garante que o usuário arrastou para o lado, e não rolando a tela para baixo
-    if (distanciaY < 50) {
-        
-        // 1. Puxar da esquerda para a direita (Abrir menu)
-        // Só ativa se o puxão começar perto da borda esquerda (< 50px) para não abrir sem querer ao digitar
-        if (distanciaX > 60) {
-            dom.sidebar.classList.remove('fechado');
-        }
-        
-        // 2. Puxar da direita para a esquerda (Fechar menu)
-        else if (distanciaX < -60 && !dom.sidebar.classList.contains('fechado')) {
-            dom.sidebar.classList.add('fechado');
-        }
-    }
-}, { passive: true });
+.btn-menu-flutuante {
+    display: none !important;
+}
+
+#passo2.ativo {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+#passo2 .header-secao,
+#passo2 .navegacao-passos {
+    flex-shrink: 0 !important;
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+}
+
+#passo2 .painel-grid {
+    display: flex !important;
+    flex-direction: column-reverse !important;
+    flex: 1 !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+#passo2 .lista-partes {
+    flex: 1 !important; /* Proporção de 1 parte de espaço */
+    max-height: none !important;
+    min-height: 45px !important;
+    overflow-y: auto !important;
+    padding: 6px !important;
+    margin: 0 !important;
+}
+
+#passo2 .formulario-card {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 2.5 !important; /* Proporção de 2.5 partes de espaço */
+    padding: 10px !important;
+    gap: 8px !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+}
+
+#passo2 .formulario-card .linha-inputs {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    flex-shrink: 0 !important;
+}
+
+#passo2 .formulario-card .linha-inputs #idParte {
+    width: 60px !important;
+    padding: 6px 4px !important;
+    text-align: center;
+    margin: 0 !important;
+}
+	
+#passo2 .formulario-card .linha-inputs #tituloParte {
+    flex: 1 !important;
+    padding: 6px 8px !important;
+    margin: 0 !important;
+}
+
+#passo2 .formulario-card .color-picker-container,
+#passo2 .formulario-card .color-picker-trigger {
+    width: 32px !important;
+    height: 32px !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#passo2 textarea.cifra-input {
+    flex: 1 !important; /* Preenche o vazio do formulário */
+    height: auto !important;
+    min-height: 60px !important;
+    padding: 8px !important;
+    font-size: 13px !important;
+    margin: 0 !important;
+    resize: none !important; /* Impede redimensionamento manual que quebra o layout */
+}
+
+#passo2 .formulario-card .btn-acao {
+    flex-shrink: 0 !important;
+    padding: 8px !important;
+    margin: 0 !important;
+}
+
+.paleta-botoes { 
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    flex-shrink: 0 !important;
+}
+
+.caixa-preview-mapa {
+    overflow-x: auto !important;
+    flex-shrink: 0 !important;
+}
+
+.preview-sortable {
+    flex-wrap: nowrap !important;
+}
+	
+.paleta-botoes > *,
+.preview-sortable > * {
+    flex-shrink: 0 !important;
+}
