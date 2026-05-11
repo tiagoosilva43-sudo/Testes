@@ -1453,52 +1453,66 @@ body {
 .painel-grid {
     display: flex !important;
     flex-direction: column-reverse !important;
-    gap: 16px !important;
+    gap: 10px !important;
+    padding: 12px !important; /* Ganha área útil na tela */
 }
 
 .lista-partes {
-    max-height: 140px !important; /* Mostra ~3 itens por vez */
+    max-height: 110px !important; /* Fica mais curto para priorizar o formulário */
     overflow-y: auto !important;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 8px !important;
-    background-color: var(--bg-card);
+    padding: 6px !important;
 }
 
 .formulario-card .linha-inputs {
     display: flex !important;
     flex-direction: row !important;
-    align-items: center !important;
-    gap: 8px !important;
-    margin-bottom: 12px !important;
+    align-items: center !important; /* Força o alinhamento no centro vertical */
+    justify-content: space-between !important;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
 }
 
 .formulario-card .linha-inputs #idParte {
-        width: 65px !important; /* Espaço exato para "V1", "C1" */
-        padding: 8px 6px !important;
-        text-align: center;
+    width: 60px !important;
+    padding: 6px 4px !important;
+    text-align: center;
+    margin: 0 !important;
 }
 
 .formulario-card .linha-inputs #tituloParte {
-    flex: 1 !important; /* Ocupa todo o espaço restante no meio */
-    padding: 8px 10px !important;
+    flex: 1 !important;
+    padding: 6px 8px !important;
+    margin: 0 !important;
 }
 
 .formulario-card .color-picker-container {
+    width: 32px !important;
+    height: 32px !important;
     flex-shrink: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
 .color-picker-trigger {
-    width: 34px !important;
-    height: 34px !important;
+    width: 32px !important;
+    height: 32px !important;
+    margin: 0 !important;
 }
 
 textarea.cifra-input {
-    height: 160px !important;
-    padding: 10px !important;
+    height: 115px !important; /* Tamanho reduzido para não gerar barra de rolagem no celular */
+    min-height: 115px !important;
+    padding: 8px !important;
     font-size: 13px !important;
 }
 
 .formulario-card {
-    padding: 12px !important;
+    padding: 10px !important;
+    gap: 8px !important;
+}
+
+.formulario-card .btn-acao {
+    padding: 8px !important;
+    margin-top: 2px !important;
 }
