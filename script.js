@@ -70,21 +70,6 @@ document.addEventListener("DOMContentLoaded", function() {
         filter: '.nao-arrastavel, .btn-excluir-preview',
         animation: 200,
         ghostClass: 'sortable-ghost',
-        delay: 150,             
-        delayOnTouchOnly: true, 
-        onEnd: function (evt) {
-            const nodes = Array.from(dom.previewMapa.children);
-            let novoMapa = [];
-            nodes.forEach(node => {
-                const gIdx = node.getAttribute('data-group-index');
-                if (gIdx !== null) {
-                    novoMapa.push(...mapGroupsGlobais[gIdx]); 
-                }
-            });
-            mapaAtual = novoMapa;
-            renderizarTimeline(); 
-        }
-    });
         onEnd: function (evt) {
             const nodes = Array.from(dom.previewMapa.children);
             let novoMapa = [];
